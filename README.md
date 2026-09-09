@@ -1,4 +1,12 @@
-# HexaMesh
+<h1 align="center">HexaMesh</h1>
+
+<p align="center">
+    <picture>
+      <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/LuMarans30/HexaMesh/main/docs/logo-dark.svg">
+      <source media="(prefers-color-scheme: light)" srcset="https://raw.githubusercontent.com/LuMarans30/HexaMesh/main/docs/logo-light.svg">
+      <img alt="Hexagon Mesh" src="https://raw.githubusercontent.com/LuMarans30/HexaMesh/main/docs/logo-light.svg" width="300px">
+    </picture>
+</p>
 
 An Android app that runs [llama.cpp](https://github.com/ggml-org/llama.cpp)'s `llama-server` in a foreground service, turning a phone into a headless, OpenAI-compatible API endpoint on your LAN. Open the llama.cpp server web UI at [http://localhost:8080](http://localhost:8080) or use your preferred frontend.
 
@@ -21,8 +29,8 @@ flowchart TD
 
         subgraph backends["ggml backends (libggml-*.so)"]
             OCL["libggml-opencl.so<br/>(Adreno GPU)<br /><b>default</b>"]
-            HEX["libggml-hexagon.so<br/>(Hexagon NPU)<br /><b>goal<b/>"]
-            CPUB["libggml-cpu.so<br/>(CPU)<br /><b>fallback</b?"]
+            HEX["libggml-hexagon.so<br/>(Hexagon NPU)<br /><b>goal</b>"]
+            CPUB["libggml-cpu.so<br/>(CPU)<br /><b>fallback</b>"]
         end
 
         MA -->|startForegroundService| MS
