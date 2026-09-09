@@ -24,16 +24,43 @@ jobs:
                   repository: ggml-org/llama.cpp
                   path: llama.cpp
 
+            - name: Get llama.cpp commit SHA
+              id: llama_sha
+              run: echo "sha=$(git -C llama.cpp rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+
+            - name: Cache llama.cpp build
+              uses: actions/cache@v6
+              with:
+                  path: |
+                      llama.cpp/build-adb
+                      llama.cpp/pkg-adb
+                  key: llama-cpp-adb-${{ steps.llama_sha.outputs.sha }}
+                  restore-keys: |
+                      llama-cpp-adb-
+
             - name: Set up JDK 21
               uses: actions/setup-java@v6
               with:
                   java-version: "21"
                   distribution: "temurin"
+                  cache: "gradle"
+
+            - name: Set up Android SDK
+              uses: android-actions/setup-android@v4
 
             - name: Set up Rust toolchain
               uses: dtolnay/rust-toolchain@stable
               with:
                   targets: aarch64-linux-android
+
+            - name: Cache Cargo
+              uses: actions/cache@v6
+              with:
+                  path: |
+                      ~/.cargo/registry
+                      ~/.cargo/git
+                      target
+                  key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
 
             - name: Install cargo-ndk
               run: cargo install cargo-ndk
@@ -50,11 +77,6 @@ jobs:
               run: |
                   cd llama.cpp
                   ./scripts/snapdragon/build.py --target adb
-
-            - name: Set up Android SDK
-              uses: android-actions/setup-android@v4
-              with:
-                  packages: "platform-tools ndk;27.0.12077973"
 
             - name: Grant execute permission for gradlew
               run: chmod +x gradlew
