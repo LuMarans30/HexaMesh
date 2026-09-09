@@ -3,6 +3,3 @@
 
 # Ignore Gradle build output directory
 build
-
-# Ignore llama.cpp submodule for Yek serializer
-llama.cpp/
