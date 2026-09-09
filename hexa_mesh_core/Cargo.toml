@@ -1,0 +1,22 @@
+[package]
+name = "hexa_mesh_core"
+version = "0.1.0"
+edition = "2024"
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+android_logger = "0.15.1"
+jni = "0.22.4"
+libc = "0.2.189"
+log = "0.4.34"
+
+[profile.release]
+opt-level = 3
+lto = "fat"
+incremental = false
+debug = false
+strip = "symbols"
+overflow-checks = false
+panic = "abort"

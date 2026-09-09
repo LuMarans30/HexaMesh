@@ -1,0 +1,14 @@
+package com.lumarans30.hexamesh.bridge
+
+class RustEngine {
+
+    external fun start(config: ServerConfig)
+
+    external fun stop()
+
+    companion object {
+        init {
+            System.loadLibrary("hexa_mesh_core")
+        }
+    }
+}
