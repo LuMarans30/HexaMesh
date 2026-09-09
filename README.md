@@ -9,10 +9,30 @@ The goal is inference on the Snapdragon Hexagon NPU with phones eventually meshi
 
 ## Architecture
 
-- `MainActivity.kt`: thin control panel (no XML layouts)
-- `MeshService.kt`: foreground service (`specialUse`); holds wake / Wi-Fi / multicast locks
-- `libhexa_mesh_core.so`: Rust core; spawns & supervises the server via JNI (`PR_SET_PDEATHSIG`)
-- `libllamaserver.so`: the llama.cpp server binary; backends: `libggml-hexagon`, `libggml-opencl`, `libggml-cpu`
+```mermaid
+flowchart TD
+    client["Client (web UI / Open WebUI / curl)"] -->|"HTTP :8080 /v1 over LAN"| LS
+
+    subgraph android["Android (arm64-v8a)"]
+        MA["MainActivity.kt<br/>thin control panel, no XML"]
+        MS["MeshService.kt<br/>foreground service (specialUse)<br/>wake / Wi-Fi / multicast locks"]
+        RC["libhexa_mesh_core.so<br/>Rust spawns & supervises the server child via JNI<br/>(PR_SET_PDEATHSIG)"]
+        LS["libllamaserver.so<br/>llama.cpp server binary"]
+
+        subgraph backends["ggml backends (libggml-*.so)"]
+            OCL["libggml-opencl.so<br/>(Adreno GPU)<br /><b>default</b>"]
+            HEX["libggml-hexagon.so<br/>(Hexagon NPU)<br /><b>goal<b/>"]
+            CPUB["libggml-cpu.so<br/>(CPU)<br /><b>fallback</b?"]
+        end
+
+        MA -->|startForegroundService| MS
+        MS -->|JNI| RC
+        RC -->|Command::new| LS
+        LS --> OCL
+        LS -.->|"not yet working"| HEX
+        LS --> CPUB
+    end
+```
 
 ## Building
 
