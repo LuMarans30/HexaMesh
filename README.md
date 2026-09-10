@@ -17,7 +17,7 @@ The long-term goal is Snapdragon Hexagon NPU inference and, eventually, meshing 
 > [!IMPORTANT]
 > HexaMesh currently launches the Adreno GPU (OpenCL) backend. The Hexagon NPU backend is experimental and currently produces corrupted output on tested models.
 >
-> The server listens on port `8080`. If multiple `.gguf` files are present, the app loads the first one alphabetically.
+> The server listens on port `8080`. Pick a `.gguf` in the app and tap **Start Node** to serve it; the choice is remembered until you pick another.
 
 ## Architecture
 
@@ -77,7 +77,7 @@ adb shell mkdir -p /storage/emulated/0/Android/data/com.lumarans30.hexamesh/file
 adb push <YOUR_MODEL_NAME>.gguf /storage/emulated/0/Android/data/com.lumarans30.hexamesh/files/models/
 ```
 
-The app shows the LAN endpoint and API key. From another device on the same network, use:
+Then open the app, select the model, and tap **Start Node**. Once it is serving, the app shows the LAN endpoint and API key. From another device on the same network, use:
 
 ```text
 http://<phone-ip>:8080/v1
