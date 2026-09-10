@@ -15,6 +15,7 @@ import com.lumarans30.hexamesh.node.ModelRepository
 import com.lumarans30.hexamesh.node.NodeState
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
@@ -26,6 +27,8 @@ class MainActivity : Activity() {
     private lateinit var toggleButton: Button
     private lateinit var models: ModelRepository
     private var uiScope: CoroutineScope? = null
+    private val activityScope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
+    private var collectJob: Job? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -61,15 +64,20 @@ class MainActivity : Activity() {
 
     override fun onResume() {
         super.onResume()
-        val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
-        uiScope = scope
-        scope.launch { NodeState.current.collect { render(it) } }
+        collectJob = activityScope.launch {
+            NodeState.current.collect { render(it) }
+        }
     }
 
     override fun onPause() {
-        uiScope?.cancel()
-        uiScope = null
+        collectJob?.cancel()
+        collectJob = null
         super.onPause()
+    }
+
+    override fun onDestroy() {
+        activityScope.cancel()
+        super.onDestroy()
     }
 
     private fun render(state: NodeState) {
@@ -149,7 +157,10 @@ class MainActivity : Activity() {
     }
 
     private fun stopMeshService() {
-        stopService(Intent(this, MeshService::class.java))
+        val intent = Intent(this, MeshService::class.java).apply {
+            action = MeshService.ACTION_STOP
+        }
+        startService(intent)
     }
 
     private fun requestNotificationPermission() {
