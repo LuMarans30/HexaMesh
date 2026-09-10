@@ -2,6 +2,7 @@ use crate::STOP_REQUESTED;
 use crate::command;
 use crate::config::ServerConfig;
 use crate::diagnostics;
+use crate::status::{self, Status};
 use log::{error, info, warn};
 use std::fs::{File, OpenOptions};
 use std::io::{BufRead, BufReader, LineWriter, Read, Write};
@@ -20,15 +21,25 @@ const SERVER_BIN: &str = "libllamaserver.so";
 const LOG_FILE_NAME: &str = "llama-server.log";
 const READINESS_TIMEOUT: Duration = Duration::from_secs(180);
 const TERM_GRACE: Duration = Duration::from_secs(4);
+const HEALTH_POLL_INTERVAL: Duration = Duration::from_millis(500);
+const HEALTH_MAX_MISSES: u32 = 3;
 
 pub fn run_supervisor(config: ServerConfig) {
+    status::set(Status::Starting, "Starting llama-server...");
+
     let exe = Path::new(&config.lib_dir).join(SERVER_BIN);
     let log_path = Path::new(&config.cache_dir).join(LOG_FILE_NAME);
 
     diagnostics::run_diagnostics(&exe, &config.lib_dir);
 
     if !exe.exists() || !Path::new(&config.model_path).exists() {
-        error!("Pre-conditions failed (missing binary or model). Aborting launch.");
+        let message = format!(
+            "Pre-conditions failed (missing binary or model). exe={}, model={}",
+            exe.display(),
+            config.model_path
+        );
+        error!("{message}. Aborting launch.");
+        status::set(Status::Error, message);
         return;
     }
 
@@ -49,7 +60,9 @@ pub fn run_supervisor(config: ServerConfig) {
     let mut child = match cmd.spawn() {
         Ok(c) => c,
         Err(e) => {
-            error!("execve failed for {}: {e}", exe.display());
+            let message = format!("execve failed for {}: {e}", exe.display());
+            error!("{message}");
+            status::set(Status::Error, message);
             return;
         }
     };
@@ -67,6 +80,7 @@ pub fn run_supervisor(config: ServerConfig) {
 
         let _ = child.kill();
         let _ = child.wait();
+        status::set(Status::Error, "llama-server supervisor panicked");
     }
 }
 
@@ -84,22 +98,36 @@ fn supervise_child(
     }
 
     if let Ok(port) = u16::try_from(port) {
-        spawn_readiness_probe(port, Arc::clone(&is_alive));
+        spawn_health_probe(port, Arc::clone(&is_alive));
     } else {
-        error!("Invalid port specified: {}", port);
+        let message = format!("Invalid port specified: {port}");
+        error!("{message}");
+        status::set(Status::Error, message);
+        is_alive.store(false, Ordering::Relaxed);
+        terminate_process(child);
+        return;
     }
 
     while !STOP_REQUESTED.load(Ordering::Relaxed) {
+        if status::current() == Status::Error as i32 {
+            is_alive.store(false, Ordering::Relaxed);
+            terminate_process(child);
+            return;
+        }
         match child.try_wait() {
             Ok(Some(status)) => {
                 is_alive.store(false, Ordering::Relaxed);
-                log_exit_status(status);
+                let reason = exit_reason(status);
+                error!("{reason}");
+                status::set(Status::Error, reason);
                 return;
             }
             Ok(None) => thread::sleep(Duration::from_millis(200)),
             Err(e) => {
                 is_alive.store(false, Ordering::Relaxed);
-                error!("Error polling child status: {e}");
+                let message = format!("Error polling child status: {e}");
+                error!("{message}");
+                status::set(Status::Error, message);
                 return;
             }
         }
@@ -107,6 +135,7 @@ fn supervise_child(
 
     is_alive.store(false, Ordering::Relaxed);
     terminate_process(child);
+    status::set(Status::Stopped, "Stopped by request");
 }
 
 fn spawn_pump<R: Read + Send + 'static>(
@@ -134,37 +163,65 @@ fn spawn_pump<R: Read + Send + 'static>(
     });
 }
 
-fn spawn_readiness_probe(port: u16, is_alive: Arc<AtomicBool>) {
+fn spawn_health_probe(port: u16, is_alive: Arc<AtomicBool>) {
     thread::spawn(move || {
         let deadline = Instant::now() + READINESS_TIMEOUT;
         let addr = SocketAddr::from((Ipv4Addr::LOCALHOST, port));
         let req =
             format!("GET /health HTTP/1.1\r\nHost: 127.0.0.1:{port}\r\nConnection: close\r\n\r\n");
         let req_bytes = req.as_bytes();
+        let mut misses = 0u32;
 
-        while Instant::now() < deadline && is_alive.load(Ordering::Relaxed) {
-            if let Ok(mut stream) = TcpStream::connect_timeout(&addr, Duration::from_millis(400)) {
-                let _ = stream.set_read_timeout(Some(Duration::from_millis(800)));
-                if stream.write_all(req_bytes).is_ok() {
-                    let mut buf = [0u8; 128];
-                    if let Ok(n) = stream.read(&mut buf) {
-                        let response = String::from_utf8_lossy(&buf[..n]);
-                        if response.contains("200 OK") {
-                            info!("llama-server is READY and serving tokens at :{port}");
-                            return;
-                        }
-                    }
+        while is_alive.load(Ordering::Relaxed) && !STOP_REQUESTED.load(Ordering::Relaxed) {
+            let current = status::current();
+            if current != Status::Starting as i32 && current != Status::Running as i32 {
+                return;
+            }
+
+            if probe_health(addr, req_bytes) {
+                misses = 0;
+                if current == Status::Starting as i32 {
+                    info!("llama-server is READY and serving tokens at :{port}");
+                    status::transition(
+                        Status::Starting,
+                        Status::Running,
+                        format!("Ready on port {port}"),
+                    );
+                }
+            } else if current == Status::Starting as i32 {
+                if Instant::now() > deadline {
+                    let message = "Readiness probe reached timeout (model may still be loading graph or out of memory).".to_string();
+                    warn!("{message}");
+                    status::transition(Status::Starting, Status::Error, message);
+                    return;
+                }
+            } else {
+                // current == Status::Running
+                misses += 1;
+                if misses >= HEALTH_MAX_MISSES {
+                    let message = "llama-server stopped responding to /health.".to_string();
+                    error!("{message}");
+                    status::transition(Status::Running, Status::Error, message);
+                    return;
                 }
             }
-            thread::sleep(Duration::from_millis(500));
-        }
 
-        if is_alive.load(Ordering::Relaxed) {
-            warn!(
-                "Readiness probe reached timeout (model may still be loading graph or out of memory)."
-            );
+            thread::sleep(HEALTH_POLL_INTERVAL);
         }
     });
+}
+
+fn probe_health(addr: SocketAddr, req: &[u8]) -> bool {
+    if let Ok(mut stream) = TcpStream::connect_timeout(&addr, Duration::from_millis(400)) {
+        let _ = stream.set_read_timeout(Some(Duration::from_millis(800)));
+        if stream.write_all(req).is_ok() {
+            let mut buf = [0u8; 128];
+            if let Ok(n) = stream.read(&mut buf) {
+                return String::from_utf8_lossy(&buf[..n]).contains("200 OK");
+            }
+        }
+    }
+    false
 }
 
 fn terminate_process(child: &mut Child) {
@@ -189,9 +246,9 @@ fn terminate_process(child: &mut Child) {
     let _ = child.wait();
 }
 
-fn log_exit_status(s: ExitStatus) {
+fn exit_reason(s: ExitStatus) -> String {
     if let Some(code) = s.code() {
-        error!("llama-server exited with code: {code}");
+        format!("llama-server exited with code: {code}")
     } else if let Some(sig) = s.signal() {
         let reason = match sig {
             libc::SIGSEGV => "SEGV: FastRPC memory violation or unsupported architecture",
@@ -199,6 +256,8 @@ fn log_exit_status(s: ExitStatus) {
             libc::SIGKILL => "KILL: Process killed externally or OOM-killer",
             _ => "OTHER",
         };
-        error!("llama-server killed by signal {sig} ({reason})");
+        format!("llama-server killed by signal {sig} ({reason})")
+    } else {
+        "llama-server exited with an unknown status".to_string()
     }
 }

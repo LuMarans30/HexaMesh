@@ -1,14 +1,12 @@
 package com.lumarans30.hexamesh.node
 
 import android.content.Context
-import android.os.SystemClock
+import com.lumarans30.hexamesh.bridge.EngineStatus
 import com.lumarans30.hexamesh.bridge.RustEngine
 import com.lumarans30.hexamesh.bridge.ServerConfig
 import com.lumarans30.hexamesh.platform.LockManager
-import java.net.HttpURLConnection
 import java.net.Inet4Address
 import java.net.NetworkInterface
-import java.net.URI
 import java.util.concurrent.atomic.AtomicBoolean
 import kotlin.concurrent.thread
 import com.lumarans30.hexamesh.R
@@ -28,7 +26,7 @@ class NodeController(
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
     private var engineThread: Thread? = null
-    private var healthThread: Thread? = null
+    private var statusThread: Thread? = null
 
     private val engineStarted = AtomicBoolean(false)
     private val stopping = AtomicBoolean(false)
@@ -61,19 +59,18 @@ class NodeController(
             }
         }
 
-        startHealthWatcher()
+        startStatusWatcher()
     }
 
     fun stop() {
         if (!stopping.compareAndSet(false, true)) return
 
         scope.launch {
-            healthThread?.interrupt()
-            healthThread?.join(1_000)
-            healthThread = null
+            statusThread?.interrupt()
+            statusThread?.join(1_000)
+            statusThread = null
 
             runCatching { engine.stop() }
-
             engineThread?.let { t -> runCatching { t.join(2_000) } }
             engineThread = null
 
@@ -86,46 +83,49 @@ class NodeController(
     private fun fail(message: String) {
         if (stopping.getAndSet(true)) return
 
+        statusThread?.interrupt()
+        statusThread = null
+
         runCatching { engine.stop() }
 
         engineThread?.interrupt()
         engineThread = null
+        
         engineStarted.set(false)
         locks.release()
         NodeState.post(NodeState.Error(message))
     }
 
-    private fun startHealthWatcher() {
-        if (healthThread != null) return
-        healthThread =
-            thread(name = "hexamesh-health") {
-                val deadline = SystemClock.elapsedRealtime() + HEALTH_STARTUP_DEADLINE_MS
-                var everHealthy = false
-                var misses = 0
+    private fun startStatusWatcher() {
+        statusThread?.interrupt()
+        statusThread =
+            thread(name = "hexamesh-status") {
+                var lastState: Int? = null
+                var lastMessage: String? = null
 
                 try {
                     while (!stopping.get()) {
-                        if (isHealthy(SERVER_PORT)) {
-                            everHealthy = true
-                            misses = 0
-                            if (!stopping.get()) {
-                                NodeState.post(NodeState.Running(lanEndpoint()))
-                            }
-                        } else {
-                            misses++
-                            when {
-                                everHealthy && misses >= HEALTH_MAX_MISSES -> {
-                                    fail(app.getString(R.string.state_server_died))
-                                    return@thread
-                                }
+                        val status = runCatching { engine.pollStatus() }.getOrNull()
+                        if (status == null) {
+                            Thread.sleep(STATUS_POLL_INTERVAL_MS)
+                            continue
+                        }
 
-                                !everHealthy && SystemClock.elapsedRealtime() > deadline -> {
-                                    fail(app.getString(R.string.state_start_timeout))
-                                    return@thread
-                                }
+                        val state = status.state
+                        val message = status.message
+                        val first = lastState == null
+                        val changed = first || state != lastState || message != lastMessage
+
+                        if (changed) {
+                            lastState = state
+                            lastMessage = message
+
+                            if (!(first && state == EngineStatus.STOPPED)) {
+                                postEngineStatus(state, message)
                             }
                         }
-                        Thread.sleep(HEALTH_POLL_INTERVAL_MS)
+
+                        Thread.sleep(STATUS_POLL_INTERVAL_MS)
                     }
                 } catch (_: InterruptedException) {
                     // Service is shutting down
@@ -133,21 +133,18 @@ class NodeController(
             }
     }
 
-    private fun isHealthy(port: Int): Boolean =
-        runCatching {
-            val conn =
-                URI.create("http://127.0.0.1:$port/health")
-                    .toURL()
-                    .openConnection() as HttpURLConnection
-            try {
-                conn.connectTimeout = 500
-                conn.readTimeout = 800
-                conn.requestMethod = "GET"
-                conn.responseCode == 200
-            } finally {
-                conn.disconnect()
-            }
-        }.getOrDefault(false)
+    private fun postEngineStatus(state: Int, message: String?) {
+        when (state) {
+            EngineStatus.STARTING -> NodeState.post(NodeState.Starting)
+
+            EngineStatus.RUNNING -> NodeState.post(NodeState.Running(lanEndpoint()))
+
+            EngineStatus.ERROR ->
+                fail(message ?: app.getString(R.string.state_server_died))
+
+            EngineStatus.STOPPED -> NodeState.post(NodeState.Stopped)
+        }
+    }
 
     private fun lanEndpoint(): String {
         val host = lanIpv4Address() ?: "127.0.0.1"
@@ -166,8 +163,6 @@ class NodeController(
 
     companion object {
         private const val SERVER_PORT = 8080
-        private const val HEALTH_POLL_INTERVAL_MS = 2_000L
-        private const val HEALTH_STARTUP_DEADLINE_MS = 180_000L
-        private const val HEALTH_MAX_MISSES = 3
+        private const val STATUS_POLL_INTERVAL_MS = 500L
     }
 }

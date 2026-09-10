@@ -1,26 +1,31 @@
 use android_logger::Config;
 use jni::EnvUnowned;
+use jni::JValue;
 use jni::errors::ThrowRuntimeExAndDefault;
 use jni::objects::JObject;
 use jni::strings::JNIString;
 use log::info;
 use std::panic::{AssertUnwindSafe, catch_unwind};
+use std::sync::Mutex;
 use std::sync::OnceLock;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::thread;
 
 use crate::config::ServerConfig;
+use crate::status::{Snapshot, Status};
 
 mod command;
 mod config;
 mod diagnostics;
 mod engine;
+mod status;
 
 const TAG: &str = "HexaRust";
 
 pub(crate) static STOP_REQUESTED: AtomicBool = AtomicBool::new(false);
 static IS_RUNNING: AtomicBool = AtomicBool::new(false);
 static LOGGER_INIT: OnceLock<()> = OnceLock::new();
+static SUPERVISOR: Mutex<Option<thread::JoinHandle<()>>> = Mutex::new(None);
 
 macro_rules! jni_catch {
     ($env:expr, $name:expr, $body:expr) => {
@@ -45,14 +50,6 @@ macro_rules! jni_catch {
     };
 }
 
-struct RunningGuard;
-
-impl Drop for RunningGuard {
-    fn drop(&mut self) {
-        IS_RUNNING.store(false, Ordering::Relaxed);
-    }
-}
-
 #[unsafe(no_mangle)]
 pub extern "system" fn Java_com_lumarans30_hexamesh_bridge_RustEngine_start<'local>(
     mut env: EnvUnowned<'local>,
@@ -72,19 +69,23 @@ fn start_inner<'local>(
         return Ok(());
     }
 
-    let guard = RunningGuard;
+    if let Some(previous) = SUPERVISOR.lock().unwrap_or_else(|e| e.into_inner()).take() {
+        let _ = previous.join();
+    }
 
     let config = match ServerConfig::from_jobject(e, config_obj) {
         Ok(c) => c,
         Err(err) => {
+            IS_RUNNING.store(false, Ordering::Relaxed);
             log::error!("Failed to parse ServerConfig from Kotlin: {:?}", err);
             return Err(err);
         }
     };
 
     STOP_REQUESTED.store(false, Ordering::Relaxed);
+    status::set(Status::Starting, "Starting llama-server...");
 
-    thread::spawn(move || {
+    let handle = thread::spawn(move || {
         let result = catch_unwind(AssertUnwindSafe(|| {
             engine::run_supervisor(config);
         }));
@@ -93,10 +94,11 @@ fn start_inner<'local>(
 
         if result.is_err() {
             log::error!("engine::run_supervisor panicked");
+            status::set(Status::Error, "Rust engine supervisor panicked");
         }
     });
 
-    std::mem::forget(guard);
+    *SUPERVISOR.lock().unwrap_or_else(|e| e.into_inner()) = Some(handle);
 
     Ok(())
 }
@@ -111,8 +113,40 @@ pub extern "system" fn Java_com_lumarans30_hexamesh_bridge_RustEngine_stop(
     jni_catch!(env, "RustEngine.stop", |_e| {
         info!("Stop requested from Android Service.");
         STOP_REQUESTED.store(true, Ordering::Relaxed);
+
+        if let Some(handle) = SUPERVISOR.lock().unwrap_or_else(|e| e.into_inner()).take() {
+            let _ = handle.join();
+        }
+
+        let _ = status::transition(Status::Running, Status::Stopped, "Stopped by request");
+        let _ = status::transition(Status::Starting, Status::Stopped, "Stopped by request");
+
         Ok(())
     })
+}
+
+#[unsafe(no_mangle)]
+pub extern "system" fn Java_com_lumarans30_hexamesh_bridge_RustEngine_pollStatus<'local>(
+    mut env: EnvUnowned<'local>,
+    _this: JObject<'local>,
+) -> jni::sys::jobject {
+    let Snapshot { state, message } = status::snapshot();
+
+    let outcome = env.with_env(|e| -> jni::errors::Result<jni::sys::jobject> {
+        let class = e.find_class(jni::jni_str!("com/lumarans30/hexamesh/bridge/EngineStatus"))?;
+        let message = e.new_string(message)?;
+        let obj = e.new_object(
+            class,
+            jni::jni_sig!("(ILjava/lang/String;)V"),
+            &[JValue::Int(state), JValue::Object(&JObject::from(message))],
+        )?;
+        Ok(obj.into_raw())
+    });
+
+    match outcome.into_outcome() {
+        jni::Outcome::Ok(ptr) => ptr,
+        _ => std::ptr::null_mut(),
+    }
 }
 
 fn ensure_logger() {

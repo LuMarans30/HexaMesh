@@ -6,6 +6,8 @@ class RustEngine {
 
     external fun stop()
 
+    external fun pollStatus(): EngineStatus?
+
     companion object {
         init {
             System.loadLibrary("hexa_mesh_core")
