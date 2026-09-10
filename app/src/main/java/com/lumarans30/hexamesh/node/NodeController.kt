@@ -1,152 +1,141 @@
 package com.lumarans30.hexamesh.node
 
-import android.content.Context
+import com.lumarans30.hexamesh.bridge.Engine
 import com.lumarans30.hexamesh.bridge.EngineStatus
-import com.lumarans30.hexamesh.bridge.RustEngine
 import com.lumarans30.hexamesh.bridge.ServerConfig
-import com.lumarans30.hexamesh.platform.LockManager
 import java.net.Inet4Address
 import java.net.NetworkInterface
-import java.util.concurrent.atomic.AtomicBoolean
-import kotlin.concurrent.thread
-import com.lumarans30.hexamesh.R
-import com.lumarans30.hexamesh.platform.ApiKeyManager
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancelAndJoin
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
+import kotlin.time.Duration.Companion.milliseconds
+
 
 class NodeController(
-    context: Context,
-    private val engine: RustEngine,
+    private val env: NodeEnvironment,
+    private val engine: Engine,
+    private val scope: CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.IO),
 ) {
-    private val app = context.applicationContext
-    private val locks = LockManager(app)
+    private val transition = Mutex()
 
-    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
-
-    private var engineThread: Thread? = null
-    private var statusThread: Thread? = null
-
-    private val engineStarted = AtomicBoolean(false)
-    private val stopping = AtomicBoolean(false)
+    @Volatile
+    private var running = false
+    private var statusJob: Job? = null
 
     fun start(modelPath: String?) {
-        if (modelPath == null) {
-            NodeState.post(NodeState.Idle)
-            return
-        }
-
-        if (!engineStarted.compareAndSet(false, true)) return
-
-        stopping.set(false)
-        locks.acquire()
-        NodeState.post(NodeState.Starting)
-
-        engineThread = thread(name = "hexamesh-engine") {
-            try {
-                val config = ServerConfig(
-                    modelPath = modelPath,
-                    nativeLibDir = app.applicationInfo.nativeLibraryDir,
-                    cacheDir = app.cacheDir.absolutePath,
-                    port = SERVER_PORT,
-                    backend = "GPU",
-                    apiKey = ApiKeyManager.getOrCreateApiKey(app),
-                )
-                engine.start(config)
-            } catch (t: Throwable) {
-                fail(t.message ?: "Failed to start the Rust engine")
-            }
-        }
-
-        startStatusWatcher()
+        scope.launch { applyModel(modelPath) }
     }
 
     fun stop() {
-        if (!stopping.compareAndSet(false, true)) return
+        scope.launch { unload() }
+    }
 
-        scope.launch {
-            statusThread?.interrupt()
-            statusThread?.join(1_000)
-            statusThread = null
+    internal suspend fun applyModel(modelPath: String?) =
+        transition.withLock {
+            if (modelPath == null) {
+                NodeState.post(NodeState.Idle)
+                return@withLock
+            }
+            if (running) return@withLock
 
-            runCatching { engine.stop() }
-            engineThread?.let { t -> runCatching { t.join(2_000) } }
-            engineThread = null
+            running = true
+            env.locks.acquire()
+            NodeState.post(NodeState.Starting)
 
-            engineStarted.set(false)
-            locks.release()
+            try {
+                engine.start(
+                    ServerConfig(
+                        modelPath = modelPath,
+                        nativeLibDir = env.nativeLibDir,
+                        cacheDir = env.cacheDir,
+                        port = SERVER_PORT,
+                        backend = BACKEND,
+                        apiKey = env.apiKey,
+                    )
+                )
+            } catch (t: Throwable) {
+                teardown()
+                NodeState.post(NodeState.Error(t.message ?: FAILED_TO_START))
+                return@withLock
+            }
+
+            watchStatus()
+        }
+
+    internal suspend fun unload() =
+        transition.withLock {
+            if (!running) return@withLock
+
+            NodeState.post(NodeState.Stopping)
+            teardown()
             NodeState.post(NodeState.Stopped)
         }
-    }
 
-    private fun fail(message: String) {
-        if (stopping.getAndSet(true)) return
+    private suspend fun fail(message: String) =
+        transition.withLock {
+            if (!running) return@withLock
 
-        statusThread?.interrupt()
-        statusThread = null
+            teardown(stopWatcher = false)
+            NodeState.post(NodeState.Error(message))
+        }
 
-        runCatching { engine.stop() }
-
-        engineThread?.interrupt()
-        engineThread = null
-        
-        engineStarted.set(false)
-        locks.release()
-        NodeState.post(NodeState.Error(message))
-    }
-
-    private fun startStatusWatcher() {
-        statusThread?.interrupt()
-        statusThread =
-            thread(name = "hexamesh-status") {
+    private fun watchStatus() {
+        statusJob?.cancel()
+        statusJob =
+            scope.launch {
                 var lastState: Int? = null
                 var lastMessage: String? = null
 
-                try {
-                    while (!stopping.get()) {
-                        val status = runCatching { engine.pollStatus() }.getOrNull()
-                        if (status == null) {
-                            Thread.sleep(STATUS_POLL_INTERVAL_MS)
-                            continue
-                        }
+                while (isActive && running) {
+                    val status = runCatching { engine.pollStatus() }.getOrNull()
+                    if (status == null) {
+                        delay(STATUS_POLL_INTERVAL_MS.milliseconds)
+                        continue
+                    }
 
-                        val state = status.state
-                        val message = status.message
-                        val first = lastState == null
-                        val changed = first || state != lastState || message != lastMessage
+                    val first = lastState == null
+                    val changed =
+                        first || status.state != lastState || status.message != lastMessage
 
-                        if (changed) {
-                            lastState = state
-                            lastMessage = message
+                    if (changed) {
+                        lastState = status.state
+                        lastMessage = status.message
 
-                            // Rust's snapshot still reads STOPPED on the first
-                            // poll; ignore it so it doesn't clobber the Starting
-                            // state posted by start().
-                            if (!(first && state == EngineStatus.STOPPED)) {
-                                postEngineStatus(state, message)
+                        if (!(first && status.state == EngineStatus.STOPPED)) {
+                            when (status.state) {
+                                EngineStatus.RUNNING ->
+                                    NodeState.post(NodeState.Running(lanEndpoint()))
+
+                                EngineStatus.ERROR -> {
+                                    fail(status.message ?: env.serverDiedMessage)
+                                    return@launch
+                                }
+
+                                else -> Unit
                             }
                         }
-
-                        Thread.sleep(STATUS_POLL_INTERVAL_MS)
                     }
-                } catch (_: InterruptedException) {
-                    // Service is shutting down
+
+                    delay(STATUS_POLL_INTERVAL_MS.milliseconds)
                 }
             }
     }
 
-    private fun postEngineStatus(state: Int, message: String?) {
-        when (state) {
-            EngineStatus.STARTING -> NodeState.post(NodeState.Starting)
-
-            EngineStatus.RUNNING -> NodeState.post(NodeState.Running(lanEndpoint()))
-
-            EngineStatus.ERROR ->
-                fail(message ?: app.getString(R.string.state_server_died))
-
-            EngineStatus.STOPPED -> NodeState.post(NodeState.Stopped)
+    private suspend fun teardown(stopWatcher: Boolean = true) {
+        running = false
+        if (stopWatcher) {
+            statusJob?.cancelAndJoin()
         }
+        statusJob = null
+        runCatching { engine.stop() }
+        env.locks.release()
     }
 
     private fun lanEndpoint(): String {
@@ -166,6 +155,8 @@ class NodeController(
 
     companion object {
         private const val SERVER_PORT = 8080
+        private const val BACKEND = "GPU"
+        private const val FAILED_TO_START = "Failed to start the Rust engine"
         private const val STATUS_POLL_INTERVAL_MS = 500L
     }
 }

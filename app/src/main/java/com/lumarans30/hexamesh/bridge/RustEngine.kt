@@ -1,12 +1,13 @@
 package com.lumarans30.hexamesh.bridge
 
-class RustEngine {
+/** JNI-backed [Engine] that drives `libhexa_mesh_core.so`. */
+class RustEngine : Engine {
 
-    external fun start(config: ServerConfig)
+    external override fun start(config: ServerConfig)
 
-    external fun stop()
+    external override fun stop()
 
-    external fun pollStatus(): EngineStatus?
+    external override fun pollStatus(): EngineStatus?
 
     companion object {
         init {

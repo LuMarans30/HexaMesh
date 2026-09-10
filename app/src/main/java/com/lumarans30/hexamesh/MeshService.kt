@@ -8,6 +8,9 @@ import android.util.Log
 import com.lumarans30.hexamesh.bridge.RustEngine
 import com.lumarans30.hexamesh.node.ModelRepository
 import com.lumarans30.hexamesh.node.NodeController
+import com.lumarans30.hexamesh.node.NodeEnvironment
+import com.lumarans30.hexamesh.platform.ApiKeyManager
+import com.lumarans30.hexamesh.platform.LockManager
 import com.lumarans30.hexamesh.platform.Notifications
 
 /** Persistent foreground service that hosts the HexaMesh node. */
@@ -29,7 +32,16 @@ class MeshService : Service() {
         super.onCreate()
         notifications = Notifications(this)
         models = ModelRepository(this)
-        node = NodeController(this, RustEngine())
+        node = NodeController(
+            NodeEnvironment(
+                nativeLibDir = applicationInfo.nativeLibraryDir,
+                cacheDir = cacheDir.absolutePath,
+                apiKey = ApiKeyManager.getOrCreateApiKey(this),
+                serverDiedMessage = getString(R.string.state_server_died),
+                locks = LockManager(this),
+            ),
+            RustEngine(),
+        )
 
         notifications.createChannel()
     }

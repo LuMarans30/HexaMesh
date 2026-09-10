@@ -99,6 +99,11 @@ class MainActivity : Activity() {
                     "Starting llama-server..."
                 }
 
+                NodeState.Stopping -> {
+                    setButton(getString(R.string.stopping_node), enabled = false)
+                    "Stopping llama-server..."
+                }
+
                 NodeState.Idle -> {
                     setButton(getString(R.string.stop_node)) { stopMeshService() }
                     "Service running, but no model to load."

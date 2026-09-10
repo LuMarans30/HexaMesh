@@ -7,7 +7,7 @@ import android.os.PowerManager
 /**
  * Keeps the CPU, Wi-Fi radio and multicast socket alive while the node serves.
  */
-class LockManager(context: Context) {
+class LockManager(context: Context) : Locks {
     private val app = context.applicationContext
 
     private var wakeLock: PowerManager.WakeLock? = null
@@ -15,7 +15,7 @@ class LockManager(context: Context) {
     private var multicastLock: WifiManager.MulticastLock? = null
 
     @Synchronized
-    fun acquire() {
+    override fun acquire() {
         if (wakeLock == null) {
             val pm = app.getSystemService(Context.POWER_SERVICE) as PowerManager
             wakeLock =
@@ -43,7 +43,7 @@ class LockManager(context: Context) {
     }
 
     @Synchronized
-    fun release() {
+    override fun release() {
         runCatching { if (wakeLock?.isHeld == true) wakeLock?.release() }
         runCatching { if (wifiLock?.isHeld == true) wifiLock?.release() }
         runCatching { if (multicastLock?.isHeld == true) multicastLock?.release() }

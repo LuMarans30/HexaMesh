@@ -9,6 +9,7 @@ sealed interface NodeState {
     data object Stopped : NodeState
     data object Idle : NodeState
     data object Starting : NodeState
+    data object Stopping : NodeState
     data class Running(val endpoint: String) : NodeState
     data class Error(val message: String) : NodeState
 
