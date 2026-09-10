@@ -72,22 +72,22 @@ rustup target add aarch64-linux-android
 
 ### Adding models
 
-The app can download a model directly from a link to a `.gguf` file:
+- **Download**: paste a link to a `.gguf` file. Downloads keep going
+  while the app is in the background.
 
-```text
-https://huggingface.co/<user>/<repo>/resolve/main/<file>.gguf
-https://huggingface.co/<user>/<repo>/blob/main/<file>.gguf
-```
+  ```text
+  https://huggingface.co/<user>/<repo>/resolve/main/<file>.gguf
+  https://huggingface.co/<user>/<repo>/blob/main/<file>.gguf
+  ```
 
-Downloads run in a foreground worker, so they keep going while the app is in the
-background.
+- **Import**: you can also import a file that is already on the device (copy or move).
 
-Alternatively, you can also push a file over adb:
+- **adb**: push it from your PC to the models directory.
 
-```bash
-adb shell mkdir -p /storage/emulated/0/Android/data/com.lumarans30.hexamesh/files/models
-adb push <YOUR_MODEL_NAME>.gguf /storage/emulated/0/Android/data/com.lumarans30.hexamesh/files/models/
-```
+  ```bash
+  adb shell mkdir -p /storage/emulated/0/Android/data/com.lumarans30.hexamesh/files/models
+  adb push <YOUR_MODEL_NAME>.gguf /storage/emulated/0/Android/data/com.lumarans30.hexamesh/files/models/
+  ```
 
 ### Serving
 
