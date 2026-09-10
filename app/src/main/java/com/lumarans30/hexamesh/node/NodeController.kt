@@ -56,8 +56,6 @@ class NodeController(
                 engine.start(config)
             } catch (t: Throwable) {
                 fail(t.message ?: "Failed to start the Rust engine")
-            } finally {
-                engineStarted.set(false)
             }
         }
 
@@ -84,7 +82,13 @@ class NodeController(
     }
 
     private fun fail(message: String) {
-        if (stopping.get()) return
+        if (stopping.getAndSet(true)) return
+
+        runCatching { engine.stop() }
+
+        engineThread?.interrupt()
+        engineThread = null
+        engineStarted.set(false)
         locks.release()
         NodeState.post(NodeState.Error(message))
     }
