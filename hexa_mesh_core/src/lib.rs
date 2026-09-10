@@ -12,6 +12,7 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::thread;
 
 use crate::config::ServerConfig;
+use crate::engine::Supervisor;
 use crate::status::{Snapshot, Status};
 
 mod command;
@@ -87,13 +88,13 @@ fn start_inner<'local>(
 
     let handle = thread::spawn(move || {
         let result = catch_unwind(AssertUnwindSafe(|| {
-            engine::run_supervisor(config);
+            Supervisor::supervise(config);
         }));
 
         IS_RUNNING.store(false, Ordering::Relaxed);
 
         if result.is_err() {
-            log::error!("engine::run_supervisor panicked");
+            log::error!("engine::Supervisor::supervise panicked");
             status::set(Status::Error, "Rust engine supervisor panicked");
         }
     });
