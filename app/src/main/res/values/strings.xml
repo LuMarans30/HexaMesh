@@ -15,6 +15,4 @@
     <string name="notif_waiting_model">Waiting for a .gguf model...</string>
 
     <string name="state_server_died">llama-server stopped responding.</string>
-    <string name="state_start_timeout">Server did not become ready within 3 minutes. Check: adb
-        logcat -s LlamaServer</string>
 </resources>
