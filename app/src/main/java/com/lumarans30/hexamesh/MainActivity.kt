@@ -52,8 +52,8 @@ class MainActivity : ComponentActivity() {
 
     private var importCandidate by mutableStateOf<ImportCandidate?>(null)
     private var importPrompt by mutableStateOf<ImportPrompt?>(null)
-    private var importError by mutableStateOf<String?>(null)
     private var awaitingGrant by mutableStateOf(false)
+    private var grantPrompted = false
 
     private val apiKey by lazy { ApiKeyManager.getOrCreateApiKey(this) }
 
@@ -89,15 +89,19 @@ class MainActivity : ComponentActivity() {
                 }
 
                 LaunchedEffect(importInfos) {
-                    val info = importInfos.firstOrNull() ?: return@LaunchedEffect
-                    if (info.state == WorkInfo.State.SUCCEEDED) {
-                        refreshModels()
-                        importError =
-                            info.outputData
-                                .getString(ModelImportWorker.KEY_WARNING)
-                                ?.takeIf { it.isNotBlank() }
-                    }
+                    if (importInfos.any { it.state == WorkInfo.State.SUCCEEDED }) refreshModels()
                 }
+
+                val importMessage =
+                    importInfos
+                        .firstOrNull { it.state == WorkInfo.State.FAILED }
+                        ?.outputData
+                        ?.getString(ModelImportWorker.KEY_ERROR)
+                        ?: importInfos
+                            .firstOrNull { it.state == WorkInfo.State.SUCCEEDED }
+                            ?.outputData
+                            ?.getString(ModelImportWorker.KEY_WARNING)
+                            ?.takeIf { it.isNotBlank() }
 
                 nodeScreen(
                     state = state,
@@ -110,15 +114,12 @@ class MainActivity : ComponentActivity() {
                     downloadError = downloadInfos.failureMessage(ModelDownloadWorker.KEY_ERROR),
                     importPrompt = importPrompt,
                     importProgress = importInfos.activeTransfer(),
-                    importError = importError,
+                    importError = importMessage,
                     onSelect = ::selectModel,
                     onDelete = ::deleteModel,
                     onDownload = ::startDownload,
                     onCancelDownload = ::cancelDownload,
-                    onImport = {
-                        importError = null
-                        pickModel.launch(arrayOf("*/*"))
-                    },
+                    onImport = { pickModel.launch(arrayOf("*/*")) },
                     onCancelImport = { workManager.cancelUniqueWork(ModelImportWorker.WORK_NAME) },
                     onImportCopy = { decideImport(move = false) },
                     onImportMove = { decideImport(move = true) },
@@ -130,7 +131,7 @@ class MainActivity : ComponentActivity() {
                     onGrantDismiss = {
                         importPrompt =
                             importCandidate?.let {
-                                ImportPrompt.Choose(it.name, it.sizeBytes, canMove = canMove(it))
+                                ImportPrompt.Choose(it.name, it.sizeBytes)
                             }
                     },
                     onStart = ::startMeshService,
@@ -152,7 +153,7 @@ class MainActivity : ComponentActivity() {
             awaitingGrant = false
             importCandidate?.let {
                 importPrompt =
-                    ImportPrompt.Choose(it.name, it.sizeBytes, canMove = canMove(it))
+                    ImportPrompt.Choose(it.name, it.sizeBytes)
             }
         }
     }
@@ -174,8 +175,8 @@ class MainActivity : ComponentActivity() {
                 sizeBytes = path?.let { File(it).length() } ?: documentSize(this, uri) ?: -1L,
             )
         importCandidate = candidate
-        importError = null
-        importPrompt = ImportPrompt.Choose(candidate.name, candidate.sizeBytes, canMove(candidate))
+        grantPrompted = false
+        importPrompt = ImportPrompt.Choose(candidate.name, candidate.sizeBytes)
     }
 
     private fun canMove(candidate: ImportCandidate): Boolean =
@@ -183,7 +184,8 @@ class MainActivity : ComponentActivity() {
 
     private fun decideImport(move: Boolean) {
         val candidate = importCandidate ?: return
-        if (move && !canMove(candidate)) {
+        if (move && !canMove(candidate) && !grantPrompted) {
+            grantPrompted = true
             importPrompt = ImportPrompt.Grant(candidate.name)
             return
         }

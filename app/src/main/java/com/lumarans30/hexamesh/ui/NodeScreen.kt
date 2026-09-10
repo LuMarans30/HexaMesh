@@ -422,8 +422,7 @@ data class DownloadStatus(val fileName: String, val downloaded: Long, val total:
 sealed interface ImportPrompt {
     val name: String
 
-    data class Choose(override val name: String, val sizeBytes: Long, val canMove: Boolean) :
-        ImportPrompt
+    data class Choose(override val name: String, val sizeBytes: Long) : ImportPrompt
 
     data class Grant(override val name: String) : ImportPrompt
 }
@@ -489,26 +488,13 @@ private fun importChoiceDialog(
         onDismissRequest = onDismiss,
         title = { Text("Import model") },
         text = {
-            Column {
-                Text(
-                    if (prompt.sizeBytes > 0) {
-                        "${prompt.name} · ${formatSize(prompt.sizeBytes)}"
-                    } else {
-                        prompt.name
-                    }
-                )
-                Spacer(Modifier.height(8.dp))
-                Text(
-                    text =
-                        if (prompt.canMove) {
-                            "Copy keeps the original file. Move deletes it to free the space."
-                        } else {
-                            "Copy keeps the original file. Move deletes it to free the space — " +
-                                "Android needs \"All files access\" for that."
-                        },
-                    style = MaterialTheme.typography.bodySmall,
-                )
-            }
+            Text(
+                if (prompt.sizeBytes > 0) {
+                    "${prompt.name} · ${formatSize(prompt.sizeBytes)}"
+                } else {
+                    prompt.name
+                }
+            )
         },
         confirmButton = { TextButton(onClick = onMove) { Text("Move") } },
         dismissButton = {

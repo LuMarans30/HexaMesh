@@ -74,7 +74,14 @@ class ModelImportWorker(appContext: Context, params: WorkerParameters) :
             throw cancellation
         } catch (t: Throwable) {
             Log.w(TAG, "Import failed", t)
-            Result.failure(workDataOf(KEY_ERROR to (t.message ?: "Import failed.")))
+            val message = t.message.orEmpty()
+            val friendly =
+                if (message.contains("EACCES") || message.contains("Permission denied")) {
+                    "Move failed: HexaMesh needs \"All files access\". Try Copy instead."
+                } else {
+                    message.ifBlank { "Import failed." }
+                }
+            Result.failure(workDataOf(KEY_ERROR to friendly))
         }
     }
 
