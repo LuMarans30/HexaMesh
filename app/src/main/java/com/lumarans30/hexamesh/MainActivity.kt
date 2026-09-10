@@ -50,6 +50,7 @@ class MainActivity : ComponentActivity() {
                     apiKey = apiKey,
                     adbPushHint = repository.adbPushHint(),
                     onSelect = ::selectModel,
+                    onDelete = ::deleteModel,
                     onStart = ::startMeshService,
                     onStop = ::stopMeshService,
                     onFixBattery = ::requestIgnoreBatteryOptimizations,
@@ -78,6 +79,11 @@ class MainActivity : ComponentActivity() {
     private fun selectModel(model: Model) {
         repository.select(model)
         selectedPath = model.path
+    }
+
+    private fun deleteModel(model: Model) {
+        repository.delete(model)
+        refreshModels()
     }
 
     private fun isIgnoringBatteryOptimizations(): Boolean =

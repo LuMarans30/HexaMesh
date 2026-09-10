@@ -31,6 +31,10 @@ class ModelRepository(context: Context) {
         prefs.edit().putString(KEY_SELECTED, model.path).apply()
     }
 
+    fun delete(model: Model): Boolean =
+        runCatching { !File(model.path).exists() || File(model.path).delete() }
+            .getOrDefault(false)
+
     fun adbPushHint(): String = "adb push model.gguf ${dir.absolutePath}/"
 
     private companion object {

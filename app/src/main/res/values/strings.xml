@@ -16,4 +16,10 @@
     <string name="notif_waiting_model">Waiting for a .gguf model...</string>
 
     <string name="state_server_died">llama-server stopped responding.</string>
+
+    <string name="delete_model_title">Delete model?</string>
+    <string name="delete_model_message">%1$s will be permanently deleted from this device.</string>
+    <string name="delete_model">Delete %1$s</string>
+    <string name="delete">Delete</string>
+    <string name="cancel">Cancel</string>
 </resources>
