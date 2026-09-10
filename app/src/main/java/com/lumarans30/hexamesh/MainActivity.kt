@@ -82,7 +82,7 @@ class MainActivity : Activity() {
     }
 
     private fun render(state: NodeState) {
-        val model = models.findDefault()
+        val model = models.selected()
         val batteryExempt =
             getSystemService(PowerManager::class.java)
                 ?.isIgnoringBatteryOptimizations(packageName) == true
@@ -94,12 +94,12 @@ class MainActivity : Activity() {
                     "Node stopped."
                 }
 
-                NodeState.Starting -> {
+                is NodeState.Starting -> {
                     setButton(getString(R.string.starting_node), enabled = false)
                     "Starting llama-server..."
                 }
 
-                NodeState.Stopping -> {
+                is NodeState.Stopping -> {
                     setButton(getString(R.string.stopping_node), enabled = false)
                     "Stopping llama-server..."
                 }
@@ -158,8 +158,8 @@ class MainActivity : Activity() {
 
     private fun startMeshService() {
         val intent = Intent(this, MeshService::class.java)
-        models.findDefault()?.let {
-            intent.putExtra(MeshService.EXTRA_MODEL_PATH, it.absolutePath)
+        models.selected()?.let {
+            intent.putExtra(MeshService.EXTRA_MODEL_PATH, it.path)
         }
         startForegroundService(intent)
     }

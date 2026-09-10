@@ -58,11 +58,13 @@ class NodeControllerTest {
 
         controller.applyModel(MODEL)
 
-        assertEquals(NodeState.Starting, NodeState.current.value)
+        assertEquals(NodeState.Starting(MODEL), NodeState.current.value)
 
         runCurrent()
 
-        assertTrue(NodeState.current.value is NodeState.Running)
+        val running = NodeState.current.value
+        assertTrue(running is NodeState.Running)
+        assertEquals(MODEL, (running as NodeState.Running).modelPath)
         assertEquals(1, locks.acquires)
 
         val config = engine.started.single()
@@ -84,7 +86,7 @@ class NodeControllerTest {
         engine.stateWhenStopped = null
         controller.unload()
 
-        assertEquals(NodeState.Stopping, engine.stateWhenStopped)
+        assertEquals(NodeState.Stopping(MODEL), engine.stateWhenStopped)
         assertEquals(NodeState.Stopped, NodeState.current.value)
         assertEquals(1, locks.releases)
         assertEquals(1, engine.stopCount)

@@ -54,7 +54,7 @@ class MeshService : Service() {
         }
 
         val requestedModelPath = intent?.getStringExtra(EXTRA_MODEL_PATH)
-        val modelPath = requestedModelPath ?: models.findDefault()?.absolutePath
+        val modelPath = requestedModelPath ?: models.selected()?.path
 
         startForeground(
             Notifications.NOTIFICATION_ID,

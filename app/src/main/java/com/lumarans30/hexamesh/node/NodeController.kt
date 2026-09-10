@@ -27,6 +27,9 @@ class NodeController(
 
     @Volatile
     private var running = false
+
+    @Volatile
+    private var activeModelPath: String? = null
     private var statusJob: Job? = null
 
     fun start(modelPath: String?) {
@@ -46,8 +49,9 @@ class NodeController(
             if (running) return@withLock
 
             running = true
+            activeModelPath = modelPath
             env.locks.acquire()
-            NodeState.post(NodeState.Starting)
+            NodeState.post(NodeState.Starting(modelPath))
 
             try {
                 engine.start(
@@ -73,7 +77,7 @@ class NodeController(
         transition.withLock {
             if (!running) return@withLock
 
-            NodeState.post(NodeState.Stopping)
+            activeModelPath?.let { NodeState.post(NodeState.Stopping(it)) }
             teardown()
             NodeState.post(NodeState.Stopped)
         }
@@ -110,8 +114,12 @@ class NodeController(
 
                         if (!(first && status.state == EngineStatus.STOPPED)) {
                             when (status.state) {
-                                EngineStatus.RUNNING ->
-                                    NodeState.post(NodeState.Running(lanEndpoint()))
+                                EngineStatus.RUNNING -> {
+                                    val model = activeModelPath
+                                    if (model != null) {
+                                        NodeState.post(NodeState.Running(model, lanEndpoint()))
+                                    }
+                                }
 
                                 EngineStatus.ERROR -> {
                                     fail(status.message ?: env.serverDiedMessage)
@@ -130,6 +138,7 @@ class NodeController(
 
     private suspend fun teardown(stopWatcher: Boolean = true) {
         running = false
+        activeModelPath = null
         if (stopWatcher) {
             statusJob?.cancelAndJoin()
         }
