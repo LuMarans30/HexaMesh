@@ -1,6 +1,9 @@
 package com.lumarans30.hexamesh.ui
 
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -10,27 +13,34 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.lumarans30.hexamesh.R
+import com.lumarans30.hexamesh.node.Model
 import com.lumarans30.hexamesh.node.NodeState
 import java.io.File
+import java.util.Locale
 
 /**
- * Top-level control panel. This is the parity rewrite of the old View-based
- * screen; model browsing and load/unload land in later units.
+ * Top-level control panel: model picker, node status and the load/unload
+ * control.
  */
 @Composable
 fun nodeScreen(
     state: NodeState,
-    selectedModel: String?,
+    models: List<Model>,
+    selectedPath: String?,
     batteryExempt: Boolean,
     apiKey: String,
     adbPushHint: String,
+    onSelect: (Model) -> Unit,
     onStart: () -> Unit,
     onStop: () -> Unit,
     modifier: Modifier = Modifier,
@@ -49,14 +59,16 @@ fun nodeScreen(
 
             Spacer(Modifier.height(16.dp))
 
-            if (selectedModel != null) {
-                Text("Model: $selectedModel", style = MaterialTheme.typography.bodyMedium)
-            } else {
+            if (models.isEmpty()) {
                 Text(
                     "No model found. Push a GGUF to this phone:",
                     style = MaterialTheme.typography.bodyMedium,
                 )
                 Text("  $adbPushHint", style = MaterialTheme.typography.bodySmall)
+            } else {
+                Text("Models", style = MaterialTheme.typography.titleMedium)
+                Spacer(Modifier.height(8.dp))
+                modelList(models, selectedPath, onSelect)
             }
 
             Spacer(Modifier.height(16.dp))
@@ -84,6 +96,52 @@ fun nodeScreen(
                 "Logs: adb logcat -s HexaRust MeshService LlamaServer",
                 style = MaterialTheme.typography.bodySmall,
             )
+        }
+    }
+}
+
+@Composable
+private fun modelList(models: List<Model>, selectedPath: String?, onSelect: (Model) -> Unit) {
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        models.forEach { model ->
+            modelRow(
+                model = model,
+                selected = model.path == selectedPath,
+                onClick = { onSelect(model) },
+            )
+        }
+    }
+}
+
+@Composable
+private fun modelRow(model: Model, selected: Boolean, onClick: () -> Unit) {
+    Surface(
+        color =
+            if (selected) {
+                MaterialTheme.colorScheme.primaryContainer
+            } else {
+                MaterialTheme.colorScheme.surfaceVariant
+            },
+        shape = MaterialTheme.shapes.medium,
+        modifier = Modifier.fillMaxWidth(),
+    ) {
+        Row(
+            modifier =
+                Modifier.fillMaxWidth()
+                    .clickable(onClick = onClick)
+                    .padding(horizontal = 8.dp, vertical = 4.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            RadioButton(selected = selected, onClick = onClick)
+            Column(Modifier.weight(1f).padding(start = 4.dp)) {
+                Text(
+                    text = model.name,
+                    style = MaterialTheme.typography.bodyLarge,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                Text(formatSize(model.sizeBytes), style = MaterialTheme.typography.bodySmall)
+            }
         }
     }
 }
@@ -118,3 +176,17 @@ private fun detail(state: NodeState, apiKey: String): String =
 
         is NodeState.Error -> "Error: ${state.message}"
     }
+
+internal fun formatSize(bytes: Long): String {
+    if (bytes < 1024) return "$bytes B"
+
+    val units = arrayOf("KiB", "MiB", "GiB", "TiB")
+    var value = bytes.toDouble() / 1024.0
+    var unit = 0
+    while (value >= 1024.0 && unit < units.lastIndex) {
+        value /= 1024.0
+        unit++
+    }
+
+    return String.format(Locale.US, "%.1f %s", value, units[unit])
+}

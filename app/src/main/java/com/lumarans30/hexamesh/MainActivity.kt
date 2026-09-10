@@ -11,6 +11,9 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
+import com.lumarans30.hexamesh.node.Model
 import com.lumarans30.hexamesh.node.ModelRepository
 import com.lumarans30.hexamesh.node.NodeState
 import com.lumarans30.hexamesh.platform.ApiKeyManager
@@ -20,21 +23,29 @@ import com.lumarans30.hexamesh.ui.nodeScreen
 /** Thin control panel for the headless node. */
 class MainActivity : ComponentActivity() {
 
-    private lateinit var models: ModelRepository
+    private lateinit var repository: ModelRepository
+
+    private var available by mutableStateOf<List<Model>>(emptyList())
+    private var selectedPath by mutableStateOf<String?>(null)
+
+    private val apiKey by lazy { ApiKeyManager.getOrCreateApiKey(this) }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        models = ModelRepository(this)
+        repository = ModelRepository(this)
+        refreshModels()
 
         setContent {
             hexaMeshTheme {
                 val state by NodeState.current.collectAsState()
                 nodeScreen(
                     state = state,
-                    selectedModel = models.selected()?.name,
+                    models = available,
+                    selectedPath = selectedPath,
                     batteryExempt = isIgnoringBatteryOptimizations(),
-                    apiKey = ApiKeyManager.getOrCreateApiKey(this),
-                    adbPushHint = models.adbPushHint(),
+                    apiKey = apiKey,
+                    adbPushHint = repository.adbPushHint(),
+                    onSelect = ::selectModel,
                     onStart = ::startMeshService,
                     onStop = ::stopMeshService,
                 )
@@ -46,13 +57,28 @@ class MainActivity : ComponentActivity() {
         startMeshService()
     }
 
+    override fun onResume() {
+        super.onResume()
+        refreshModels()
+    }
+
+    private fun refreshModels() {
+        available = repository.list()
+        selectedPath = repository.selected()?.path
+    }
+
+    private fun selectModel(model: Model) {
+        repository.select(model)
+        selectedPath = model.path
+    }
+
     private fun isIgnoringBatteryOptimizations(): Boolean =
         getSystemService(PowerManager::class.java)
             ?.isIgnoringBatteryOptimizations(packageName) == true
 
     private fun startMeshService() {
         val intent = Intent(this, MeshService::class.java)
-        models.selected()?.let { intent.putExtra(MeshService.EXTRA_MODEL_PATH, it.path) }
+        repository.selected()?.let { intent.putExtra(MeshService.EXTRA_MODEL_PATH, it.path) }
         startForegroundService(intent)
     }
 
