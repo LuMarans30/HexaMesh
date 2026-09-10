@@ -17,7 +17,7 @@ The long-term goal is Snapdragon Hexagon NPU inference and, eventually, meshing 
 > [!IMPORTANT]
 > HexaMesh currently launches the Adreno GPU (OpenCL) backend. The Hexagon NPU backend is experimental and currently produces corrupted output on tested models.
 >
-> The server listens on port `8080`. Pick a `.gguf` in the app and tap **Start Node** to serve it; the choice is remembered until you pick another.
+> The server listens on port `8080`.
 
 ## Architecture
 
@@ -72,9 +72,7 @@ rustup target add aarch64-linux-android
 
 ### Adding models
 
-The app can download a model directly. Paste a link to a `.gguf` file into
-**Model URL** and tap **Download** — a Hugging Face `resolve` or `blob` link
-works as well as any direct `http(s)` link:
+The app can download a model directly from a link to a `.gguf` file:
 
 ```text
 https://huggingface.co/<user>/<repo>/resolve/main/<file>.gguf
@@ -82,21 +80,18 @@ https://huggingface.co/<user>/<repo>/blob/main/<file>.gguf
 ```
 
 Downloads run in a foreground worker, so they keep going while the app is in the
-background, and inline progress is shown with a cancel button.
+background.
 
-You can also push a file over adb:
+Alternatively, you can also push a file over adb:
 
 ```bash
 adb shell mkdir -p /storage/emulated/0/Android/data/com.lumarans30.hexamesh/files/models
 adb push <YOUR_MODEL_NAME>.gguf /storage/emulated/0/Android/data/com.lumarans30.hexamesh/files/models/
 ```
 
-To delete a model, tap the bin icon next to it. Deletion is disabled while the
-node is running.
-
 ### Serving
 
-Open the app, select the model, and tap **Start Node**. Once it is serving, the app shows the LAN endpoint and API key. From another device on the same network, use:
+As soon as llama.cpp loads the model, the app shows the LAN endpoint and API key. From another device on the same network, use:
 
 ```text
 http://<phone-ip>:8080/v1
