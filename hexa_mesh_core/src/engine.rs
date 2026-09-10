@@ -31,13 +31,18 @@ pub fn run_supervisor(config: ServerConfig) {
         return;
     }
 
-    let log_writer = OpenOptions::new()
+    let log_writer = match OpenOptions::new()
         .create(true)
         .write(true)
         .truncate(true)
         .open(&log_path)
-        .map(|f| Arc::new(Mutex::new(LineWriter::new(f))))
-        .ok();
+    {
+        Ok(f) => Some(Arc::new(Mutex::new(LineWriter::new(f)))),
+        Err(e) => {
+            warn!("Failed to open log file {}: {e}", log_path.display());
+            None
+        }
+    };
 
     let mut cmd = command::build_server_command(&exe, &config);
     let mut child = match cmd.spawn() {
@@ -54,11 +59,8 @@ pub fn run_supervisor(config: ServerConfig) {
     // Shared flag so the readiness probe stops immediately if the child exits
     let is_alive = Arc::new(AtomicBool::new(true));
 
-    if let Some(stdout) = child.stdout.take() {
-        spawn_pump(stdout, log::Level::Info, log_writer.clone(), "[out] ");
-    }
     if let Some(stderr) = child.stderr.take() {
-        spawn_pump(stderr, log::Level::Warn, log_writer.clone(), "[err] ");
+        spawn_pump(stderr, log::Level::Info, log_writer.clone(), "");
     }
 
     if let Ok(port) = u16::try_from(config.port) {
@@ -102,9 +104,8 @@ fn spawn_pump<R: Read + Send + 'static>(
             if !trimmed.is_empty() {
                 log::log!(target: SERVER_TAG, level, "{prefix}{trimmed}");
 
-                if let Some(ref f) = file
-                    && let Ok(mut guard) = f.lock()
-                {
+                if let Some(f) = &file {
+                    let mut guard = f.lock().unwrap_or_else(|e| e.into_inner());
                     let _ = writeln!(guard, "{prefix}{trimmed}");
                 }
             }
@@ -119,17 +120,19 @@ fn spawn_readiness_probe(port: u16, is_alive: Arc<AtomicBool>) {
         let addr = SocketAddr::from((Ipv4Addr::LOCALHOST, port));
         let req =
             format!("GET /health HTTP/1.1\r\nHost: 127.0.0.1:{port}\r\nConnection: close\r\n\r\n");
+        let req_bytes = req.as_bytes();
 
         while Instant::now() < deadline && is_alive.load(Ordering::Relaxed) {
             if let Ok(mut stream) = TcpStream::connect_timeout(&addr, Duration::from_millis(400)) {
                 let _ = stream.set_read_timeout(Some(Duration::from_millis(800)));
-                if stream.write_all(req.as_bytes()).is_ok() {
+                if stream.write_all(req_bytes).is_ok() {
                     let mut buf = [0u8; 128];
-                    if let Ok(n) = stream.read(&mut buf)
-                        && String::from_utf8_lossy(&buf[..n]).contains("200 OK")
-                    {
-                        info!("llama-server is READY and serving tokens at :{port}");
-                        return;
+                    if let Ok(n) = stream.read(&mut buf) {
+                        let response = String::from_utf8_lossy(&buf[..n]);
+                        if response.contains("200 OK") {
+                            info!("llama-server is READY and serving tokens at :{port}");
+                            return;
+                        }
                     }
                 }
             }

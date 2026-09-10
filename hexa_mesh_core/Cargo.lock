@@ -68,6 +68,7 @@ dependencies = [
  "jni",
  "libc",
  "log",
+ "log-panics",
 ]
 
 [[package]]
@@ -130,6 +131,15 @@ name = "log"
 version = "0.4.34"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f9f8bd3e56ce4dfc153cf470fffbfa98c7620958b312ca5c3a4b8d5181fd13c6"
+
+[[package]]
+name = "log-panics"
+version = "2.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "68f9dd8546191c1850ecf67d22f5ff00a935b890d0e84713159a55495cc2ac5f"
+dependencies = [
+ "log",
+]
 
 [[package]]
 name = "memchr"

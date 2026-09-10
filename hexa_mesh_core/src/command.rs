@@ -16,18 +16,30 @@ pub fn build_server_command(exe: &Path, config: &ServerConfig) -> Command {
         cache_dir,
     } = config;
 
+    let existing_env =
+        |var: &str| -> Option<String> { std::env::var(var).ok().filter(|v| !v.is_empty()) };
+
     // Environment setup for Qualcomm DSPs
-    let adsp_existing = std::env::var("ADSP_LIBRARY_PATH").unwrap_or_default();
-    let adsp_path = if adsp_existing.is_empty() {
-        format!("{lib_dir};/system/lib/rfsa/adsp;/system/vendor/lib/rfsa/adsp;/dsp;/vendor/dsp")
-    } else {
-        format!("{lib_dir};{adsp_existing}")
+    let adsp_fallback = "/system/lib/rfsa/adsp;/system/vendor/lib/rfsa/adsp;/dsp;/vendor/dsp";
+    let system_libs = "/vendor/lib64:/system/lib64";
+
+    let adsp_path = match existing_env("ADSP_LIBRARY_PATH") {
+        Some(val) => format!("{lib_dir};{val}"),
+        None => format!("{lib_dir};{adsp_fallback}"),
     };
 
-    let ld_existing = std::env::var("LD_LIBRARY_PATH").unwrap_or_default();
-    let ld_path = format!("{lib_dir}:/vendor/lib64:/system/lib64:{ld_existing}");
+    let ld_path = match existing_env("LD_LIBRARY_PATH") {
+        Some(val) => format!("{lib_dir}:{system_libs}:{val}"),
+        None => format!("{lib_dir}:{system_libs}"),
+    };
 
     let port_str = port.to_string();
+
+    let cl_cache_dir = Path::new(&cache_dir).join("cl-cache");
+    let work_dir = Path::new(&cache_dir).join("run");
+
+    let _ = fs::create_dir_all(&cl_cache_dir);
+    let _ = fs::create_dir_all(&work_dir);
 
     let mut args = vec![
         "--host",
@@ -45,16 +57,10 @@ pub fn build_server_command(exe: &Path, config: &ServerConfig) -> Command {
         "--no-warmup",
     ];
 
-    let cl_cache_dir = Path::new(&cache_dir).join("cl-cache");
-    let _ = fs::create_dir_all(&cl_cache_dir);
-
     match backend.to_lowercase().as_str() {
         "gpu" | "opencl" => {
             args.extend(["--device", "GPUOpenCL", "-ngl", "99"]);
-            cmd.env(
-                "GGML_OPENCL_KERNEL_CACHE_DIR",
-                cl_cache_dir.to_string_lossy().as_ref(),
-            );
+            cmd.env("GGML_OPENCL_KERNEL_CACHE_DIR", cl_cache_dir.as_os_str());
         }
         "npu" | "hexagon" => {
             args.extend(["--device", "HTP0", "-ngl", "99"]);
@@ -63,19 +69,15 @@ pub fn build_server_command(exe: &Path, config: &ServerConfig) -> Command {
                 .env("GGML_HEXAGON_OPFILTER", "ADD");
         }
         _ => {
-            // CPU fallback
             args.extend(["-ngl", "0"]);
         }
     }
 
-    let work_dir = Path::new(&cache_dir).join("run");
-    let _ = fs::create_dir_all(&work_dir);
-
     cmd.args(&args)
         .current_dir(&work_dir)
-        .env("LD_LIBRARY_PATH", ld_path)
-        .env("ADSP_LIBRARY_PATH", adsp_path)
-        .stdout(Stdio::piped())
+        .env("LD_LIBRARY_PATH", &ld_path)
+        .env("ADSP_LIBRARY_PATH", &adsp_path)
+        .stdout(Stdio::null())
         .stderr(Stdio::piped());
 
     // Ensure the child dies if the Android JVM dies

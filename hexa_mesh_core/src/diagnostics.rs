@@ -9,7 +9,7 @@ pub fn run_diagnostics(exe: &Path, lib_dir: &str) {
         if mode & 0o111 == 0 {
             error!("Executable missing +x bit ({:o}). Chmodding...", mode);
             let mut p = md.permissions();
-            p.set_mode(mode | 0o755);
+            p.set_mode(mode | 0o111);
             let _ = fs::set_permissions(exe, p);
         }
     } else {
@@ -19,17 +19,15 @@ pub fn run_diagnostics(exe: &Path, lib_dir: &str) {
     for dev in &["/dev/cdsprpc-smd", "/dev/adsprpc-smd"] {
         match File::open(dev) {
             Ok(_) => info!("DSP Device {dev}: ACCESSIBLE"),
-            Err(e) => {
-                warn!("DSP Device {dev}: CANNOT OPEN ({e}). Check SELinux untrusted_app rules.")
-            }
+            Err(e) => warn!("DSP Device {dev}: CANNOT OPEN ({e})"),
         }
     }
 
     if let Ok(entries) = fs::read_dir(lib_dir) {
         let skels: Vec<_> = entries
             .filter_map(|e| e.ok())
-            .map(|e| e.file_name().to_string_lossy().into_owned())
-            .filter(|n| n.starts_with("libggml-htp-v"))
+            .map(|e| e.file_name())
+            .filter(|n| n.to_string_lossy().starts_with("libggml-htp-v"))
             .collect();
         info!("Hexagon skeletons present: {:?}", skels);
     }

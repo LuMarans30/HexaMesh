@@ -19,28 +19,19 @@ impl ServerConfig {
         obj: &JObject<'local>,
     ) -> jni::errors::Result<Self> {
         let mut get_str = |name: &str| -> jni::errors::Result<String> {
-            let jobj = env
-                .get_field(obj, JNIString::new(name), jni_sig!("Ljava/lang/String;"))?
-                .l()?;
-            let jstr = JString::cast_local(env, jobj)?;
+            let val = env.get_field(obj, JNIString::new(name), jni_sig!("Ljava/lang/String;"))?;
+            let jstr = JString::cast_local(env, val.l()?)?;
             jstr.try_to_string(env)
         };
 
-        let model_path = get_str("modelPath")?;
-        let lib_dir = get_str("nativeLibDir")?;
-        let cache_dir = get_str("cacheDir")?;
-        let backend = get_str("backend")?;
-
-        let port = env
-            .get_field(obj, JNIString::new("port"), jni_sig!("I"))?
-            .i()?;
-
         Ok(Self {
-            model_path,
-            lib_dir,
-            cache_dir,
-            port,
-            backend,
+            model_path: get_str("modelPath")?,
+            lib_dir: get_str("nativeLibDir")?,
+            cache_dir: get_str("cacheDir")?,
+            backend: get_str("backend")?,
+            port: env
+                .get_field(obj, JNIString::new("port"), jni_sig!("I"))?
+                .i()?,
         })
     }
 }

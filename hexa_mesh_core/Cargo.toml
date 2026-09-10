@@ -11,6 +11,7 @@ android_logger = "0.15.1"
 jni = "0.22.4"
 libc = "0.2.189"
 log = "0.4.34"
+log-panics = "2.1.0"
 
 [profile.release]
 opt-level = 3
