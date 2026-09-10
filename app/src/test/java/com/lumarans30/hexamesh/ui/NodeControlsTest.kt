@@ -1,0 +1,43 @@
+package com.lumarans30.hexamesh.ui
+
+import com.lumarans30.hexamesh.node.NodeState
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
+import org.junit.Test
+
+class NodeControlsTest {
+
+    @Test
+    fun `selection is enabled when the node is not busy`() {
+        assertTrue(selectionEnabled(NodeState.Stopped))
+        assertTrue(selectionEnabled(NodeState.Idle))
+        assertTrue(selectionEnabled(NodeState.Error("boom")))
+    }
+
+    @Test
+    fun `selection is disabled while loading, running or unloading`() {
+        assertFalse(selectionEnabled(NodeState.Starting("/models/a.gguf")))
+        assertFalse(selectionEnabled(NodeState.Stopping("/models/a.gguf")))
+        assertFalse(selectionEnabled(NodeState.Running("/models/a.gguf", "http://127.0.0.1/v1")))
+    }
+
+    @Test
+    fun `load is allowed from a settled state with a selection`() {
+        assertTrue(canLoad(NodeState.Stopped, hasSelection = true))
+        assertTrue(canLoad(NodeState.Error("boom"), hasSelection = true))
+    }
+
+    @Test
+    fun `load is refused without a selection`() {
+        assertFalse(canLoad(NodeState.Stopped, hasSelection = false))
+        assertFalse(canLoad(NodeState.Error("boom"), hasSelection = false))
+    }
+
+    @Test
+    fun `load is refused while busy or running`() {
+        assertFalse(canLoad(NodeState.Starting("/models/a.gguf"), hasSelection = true))
+        assertFalse(canLoad(NodeState.Stopping("/models/a.gguf"), hasSelection = true))
+        assertFalse(canLoad(NodeState.Running("/models/a.gguf", "http://127.0.0.1/v1"), true))
+        assertFalse(canLoad(NodeState.Idle, hasSelection = true))
+    }
+}

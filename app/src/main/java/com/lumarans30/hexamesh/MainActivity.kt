@@ -54,7 +54,6 @@ class MainActivity : ComponentActivity() {
 
         requestNotificationPermission()
         window.decorView.post { requestIgnoreBatteryOptimizations() }
-        startMeshService()
     }
 
     override fun onResume() {
