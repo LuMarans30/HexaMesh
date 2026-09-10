@@ -12,10 +12,13 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.RadioButton
+import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -33,6 +36,7 @@ import java.util.Locale
  * Top-level control panel: model picker, node status and the load/unload
  * control.
  */
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun nodeScreen(
     state: NodeState,
@@ -46,20 +50,17 @@ fun nodeScreen(
     onStop: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    Surface(modifier = modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
+    Scaffold(
+        modifier = modifier.fillMaxSize(),
+        topBar = { TopAppBar(title = { Text(stringResource(R.string.app_name)) }) },
+    ) { innerPadding ->
         Column(
             modifier =
                 Modifier.fillMaxSize()
+                    .padding(innerPadding)
                     .verticalScroll(rememberScrollState())
                     .padding(24.dp),
         ) {
-            Text(
-                text = stringResource(R.string.app_name),
-                style = MaterialTheme.typography.headlineSmall,
-            )
-
-            Spacer(Modifier.height(16.dp))
-
             if (models.isEmpty()) {
                 Text(
                     "No model found. Push a GGUF to this phone:",
@@ -96,10 +97,6 @@ fun nodeScreen(
 
             Text(
                 "Battery optimization exempt: ${if (batteryExempt) "yes" else "no"}",
-                style = MaterialTheme.typography.bodySmall,
-            )
-            Text(
-                "Logs: adb logcat -s HexaRust MeshService LlamaServer",
                 style = MaterialTheme.typography.bodySmall,
             )
         }
