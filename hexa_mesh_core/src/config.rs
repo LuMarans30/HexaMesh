@@ -11,6 +11,7 @@ pub struct ServerConfig {
     pub cache_dir: String,
     pub port: i32,
     pub backend: String,
+    pub api_key: String,
 }
 
 impl ServerConfig {
@@ -29,6 +30,7 @@ impl ServerConfig {
             lib_dir: get_str("nativeLibDir")?,
             cache_dir: get_str("cacheDir")?,
             backend: get_str("backend")?,
+            api_key: get_str("apiKey")?,
             port: env
                 .get_field(obj, JNIString::new("port"), jni_sig!("I"))?
                 .i()?,

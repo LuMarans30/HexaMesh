@@ -12,6 +12,7 @@ import java.net.URI
 import java.util.concurrent.atomic.AtomicBoolean
 import kotlin.concurrent.thread
 import com.lumarans30.hexamesh.R
+import com.lumarans30.hexamesh.platform.ApiKeyManager
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -52,6 +53,7 @@ class NodeController(
                     cacheDir = app.cacheDir.absolutePath,
                     port = SERVER_PORT,
                     backend = "GPU",
+                    apiKey = ApiKeyManager.getOrCreateApiKey(app),
                 )
                 engine.start(config)
             } catch (t: Throwable) {

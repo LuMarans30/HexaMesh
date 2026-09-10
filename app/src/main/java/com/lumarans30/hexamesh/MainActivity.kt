@@ -13,6 +13,7 @@ import android.widget.LinearLayout
 import android.widget.TextView
 import com.lumarans30.hexamesh.node.ModelRepository
 import com.lumarans30.hexamesh.node.NodeState
+import com.lumarans30.hexamesh.platform.ApiKeyManager
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -105,9 +106,11 @@ class MainActivity : Activity() {
 
                 is NodeState.Running -> {
                     setButton(getString(R.string.stop_node)) { stopMeshService() }
+                    val apiKey = ApiKeyManager.getOrCreateApiKey(this)
                     """
                     OpenAI-compatible endpoint:
                     ${state.endpoint}
+                    API Key: $apiKey
                     (point Open WebUI / any client at it)
                     """.trimIndent()
                 }

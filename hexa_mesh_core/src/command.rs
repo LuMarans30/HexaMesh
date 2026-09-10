@@ -14,6 +14,7 @@ pub fn build_server_command(exe: &Path, config: &ServerConfig) -> Command {
         model_path,
         lib_dir,
         cache_dir,
+        api_key,
     } = config;
 
     let existing_env =
@@ -56,6 +57,10 @@ pub fn build_server_command(exe: &Path, config: &ServerConfig) -> Command {
         "16",
         "--no-warmup",
     ];
+
+    if !api_key.is_empty() {
+        args.extend(["--api-key", api_key]);
+    }
 
     match backend.to_lowercase().as_str() {
         "gpu" | "opencl" => {
