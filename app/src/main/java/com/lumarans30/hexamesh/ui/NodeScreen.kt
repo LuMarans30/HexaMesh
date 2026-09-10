@@ -26,6 +26,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
@@ -71,10 +72,20 @@ fun nodeScreen(
     adbPushHint: String,
     download: DownloadStatus?,
     downloadError: String?,
+    importPrompt: ImportPrompt?,
+    importProgress: DownloadStatus?,
+    importError: String?,
     onSelect: (Model) -> Unit,
     onDelete: (Model) -> Unit,
     onDownload: (DownloadRequest) -> Unit,
     onCancelDownload: () -> Unit,
+    onImport: () -> Unit,
+    onCancelImport: () -> Unit,
+    onImportCopy: () -> Unit,
+    onImportMove: () -> Unit,
+    onImportCancel: () -> Unit,
+    onGrantAccess: () -> Unit,
+    onGrantDismiss: () -> Unit,
     onStart: () -> Unit,
     onStop: () -> Unit,
     onFixBattery: () -> Unit,
@@ -122,6 +133,16 @@ fun nodeScreen(
                 onCancel = onCancelDownload,
             )
 
+            Spacer(Modifier.height(8.dp))
+
+            importSection(
+                progress = importProgress,
+                error = importError,
+                enabled = importPrompt == null && importProgress == null,
+                onImport = onImport,
+                onCancel = onCancelImport,
+            )
+
             Spacer(Modifier.height(16.dp))
 
             statusSection(state, apiKey)
@@ -152,6 +173,25 @@ fun nodeScreen(
             },
             onDismiss = { pendingDelete = null },
         )
+    }
+
+    importPrompt?.let { prompt ->
+        when (prompt) {
+            is ImportPrompt.Choose ->
+                importChoiceDialog(
+                    prompt = prompt,
+                    onCopy = onImportCopy,
+                    onMove = onImportMove,
+                    onDismiss = onImportCancel,
+                )
+
+            is ImportPrompt.Grant ->
+                grantAccessDialog(
+                    name = prompt.name,
+                    onOpenSettings = onGrantAccess,
+                    onDismiss = onGrantDismiss,
+                )
+        }
     }
 }
 
@@ -376,6 +416,124 @@ data class DownloadStatus(val fileName: String, val downloaded: Long, val total:
             } else {
                 formatSize(downloaded)
             }
+}
+
+/** Prompt shown while importing a picked file. */
+sealed interface ImportPrompt {
+    val name: String
+
+    data class Choose(override val name: String, val sizeBytes: Long, val canMove: Boolean) :
+        ImportPrompt
+
+    data class Grant(override val name: String) : ImportPrompt
+}
+
+@Composable
+private fun transferProgress(status: DownloadStatus, onCancel: () -> Unit) {
+    LinearProgressIndicator(progress = { status.fraction }, modifier = Modifier.fillMaxWidth())
+    Spacer(Modifier.height(4.dp))
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Text(
+            text = status.fileName,
+            style = MaterialTheme.typography.bodySmall,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.weight(1f),
+        )
+        TextButton(onClick = onCancel) { Text("Cancel") }
+    }
+    Text(status.label, style = MaterialTheme.typography.bodySmall)
+}
+
+@Composable
+private fun importSection(
+    progress: DownloadStatus?,
+    error: String?,
+    enabled: Boolean,
+    onImport: () -> Unit,
+    onCancel: () -> Unit,
+) {
+    Column {
+        OutlinedButton(
+            onClick = onImport,
+            enabled = enabled,
+            modifier = Modifier.fillMaxWidth(),
+        ) {
+            Text("Import file")
+        }
+
+        progress?.let {
+            Spacer(Modifier.height(8.dp))
+            transferProgress(it, onCancel)
+        }
+
+        error?.let {
+            Spacer(Modifier.height(4.dp))
+            Text(
+                text = it,
+                color = MaterialTheme.colorScheme.error,
+                style = MaterialTheme.typography.bodySmall,
+            )
+        }
+    }
+}
+
+@Composable
+private fun importChoiceDialog(
+    prompt: ImportPrompt.Choose,
+    onCopy: () -> Unit,
+    onMove: () -> Unit,
+    onDismiss: () -> Unit,
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Import model") },
+        text = {
+            Column {
+                Text(
+                    if (prompt.sizeBytes > 0) {
+                        "${prompt.name} · ${formatSize(prompt.sizeBytes)}"
+                    } else {
+                        prompt.name
+                    }
+                )
+                Spacer(Modifier.height(8.dp))
+                Text(
+                    text =
+                        if (prompt.canMove) {
+                            "Copy keeps the original file. Move deletes it to free the space."
+                        } else {
+                            "Copy keeps the original file. Move deletes it to free the space — " +
+                                "Android needs \"All files access\" for that."
+                        },
+                    style = MaterialTheme.typography.bodySmall,
+                )
+            }
+        },
+        confirmButton = { TextButton(onClick = onMove) { Text("Move") } },
+        dismissButton = {
+            Row {
+                TextButton(onClick = onDismiss) { Text("Cancel") }
+                TextButton(onClick = onCopy) { Text("Copy") }
+            }
+        },
+    )
+}
+
+@Composable
+private fun grantAccessDialog(name: String, onOpenSettings: () -> Unit, onDismiss: () -> Unit) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Move needs \"All files access\"") },
+        text = {
+            Text(
+                "Android only lets apps delete files in shared storage with this permission, " +
+                    "which is what lets HexaMesh move $name instead of copying it."
+            )
+        },
+        confirmButton = { TextButton(onClick = onOpenSettings) { Text("Open settings") } },
+        dismissButton = { TextButton(onClick = onDismiss) { Text("Not now") } },
+    )
 }
 
 private class Controls(val label: String, val enabled: Boolean, val onClick: () -> Unit)

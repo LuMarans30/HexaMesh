@@ -76,6 +76,36 @@ class ModelImportTest {
         assertEquals(5L * 1024 * 1024, lastTotal)
     }
 
+    @Test
+    fun `streams a picked document into place`() = runBlocking {
+        val payload = ByteArray(3 * 1024 * 1024) { (it % 251).toByte() }
+        val dir = targetDir()
+
+        val outcome =
+            importFromStream(
+                fileName = "picked.gguf",
+                totalBytes = payload.size.toLong(),
+                targetDir = dir,
+                open = { java.io.ByteArrayInputStream(payload) },
+            )
+
+        assertEquals("picked.gguf", outcome.target.name)
+        assertEquals(payload.size, outcome.target.length().toInt())
+    }
+
+    @Test
+    fun `stream import strips path separators from the name`() = runBlocking {
+        val outcome =
+            importFromStream(
+                fileName = "weird/name.gguf",
+                totalBytes = 4,
+                targetDir = targetDir(),
+                open = { java.io.ByteArrayInputStream(ByteArray(4)) },
+            )
+
+        assertEquals("name.gguf", outcome.target.name)
+    }
+
     private fun sourceFile(
         name: String = "model.gguf",
         content: ByteArray = ByteArray(4096) { it.toByte() },

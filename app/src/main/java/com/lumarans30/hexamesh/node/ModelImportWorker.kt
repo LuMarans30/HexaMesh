@@ -5,6 +5,7 @@ import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.content.Context
 import android.content.pm.ServiceInfo
+import android.net.Uri
 import android.util.Log
 import androidx.work.CoroutineWorker
 import androidx.work.ForegroundInfo
@@ -12,33 +13,54 @@ import androidx.work.WorkerParameters
 import androidx.work.workDataOf
 import com.lumarans30.hexamesh.R
 import java.io.File
+import java.io.IOException
 import kotlinx.coroutines.CancellationException
 
 /**
- * Imports a picked `.gguf` into the models directory — moving it when possible,
- * copying otherwise. Runs as a foreground worker so a cross-volume copy (which
- * can be several gigabytes) survives the app being backgrounded.
+ * Imports a picked `.gguf` into the models directory.
+ *
+ * A **move** renames the file (instant, no extra space) when the app has raw
+ * access to it, falling back to copy-then-delete across volumes. A **copy**
+ * always streams through the picked URI, so it works without "All files
+ * access" and for cloud providers too.
  */
 class ModelImportWorker(appContext: Context, params: WorkerParameters) :
     CoroutineWorker(appContext, params) {
 
     override suspend fun doWork(): Result {
-        val sourcePath = inputData.getString(KEY_SOURCE)
+        val fileName = inputData.getString(KEY_FILE_NAME) ?: "model.gguf"
         val move = inputData.getBoolean(KEY_MOVE, false)
-        if (sourcePath.isNullOrBlank()) {
-            return Result.failure(workDataOf(KEY_ERROR to "No source file was provided."))
-        }
+        val sourcePath = inputData.getString(KEY_SOURCE)?.takeIf { it.isNotBlank() }
+        val uriString = inputData.getString(KEY_URI)
+        val total = inputData.getLong(KEY_TOTAL, -1L)
 
-        val source = File(sourcePath)
         val modelsDir =
             File(applicationContext.getExternalFilesDir(null), MODELS_DIR).apply { mkdirs() }
 
         return try {
-            runCatching { setForeground(foregroundInfo(source.name, percent = null)) }
+            runCatching { setForeground(foregroundInfo(fileName, percent = null)) }
 
             val outcome =
-                importModel(source, modelsDir, move) { copied, total ->
-                    report(source.name, copied, total)
+                if (move) {
+                    val path =
+                        sourcePath ?: return Result.failure(
+                            workDataOf(KEY_ERROR to "No source path was provided.")
+                        )
+                    importModel(File(path), modelsDir, move = true) { copied, size ->
+                        report(fileName, copied, size)
+                    }
+                } else {
+                    val uri =
+                        uriString?.let(Uri::parse)
+                            ?: return Result.failure(
+                                workDataOf(KEY_ERROR to "No source file was provided.")
+                            )
+                    importFromStream(fileName, total, modelsDir, onProgress = { copied, size ->
+                        report(fileName, copied, size)
+                    }) {
+                        applicationContext.contentResolver.openInputStream(uri)
+                            ?: throw IOException("Could not open the selected file.")
+                    }
                 }
 
             Result.success(
@@ -98,6 +120,7 @@ class ModelImportWorker(appContext: Context, params: WorkerParameters) :
     companion object {
         const val WORK_NAME = "hexamesh-model-import"
         const val KEY_SOURCE = "sourcePath"
+        const val KEY_URI = "sourceUri"
         const val KEY_MOVE = "move"
         const val KEY_FILE_NAME = "fileName"
         const val KEY_PATH = "path"
