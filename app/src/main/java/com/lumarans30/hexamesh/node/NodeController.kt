@@ -117,7 +117,9 @@ class NodeController(
                                 EngineStatus.RUNNING -> {
                                     val model = activeModelPath
                                     if (model != null) {
-                                        NodeState.post(NodeState.Running(model, lanEndpoint()))
+                                        NodeState.post(
+                                            NodeState.Running(model, lanServerUrl())
+                                        )
                                     }
                                 }
 
@@ -147,9 +149,9 @@ class NodeController(
         env.locks.release()
     }
 
-    private fun lanEndpoint(): String {
+    private fun lanServerUrl(): String {
         val host = lanIpv4Address() ?: "127.0.0.1"
-        return "http://$host:$SERVER_PORT/v1"
+        return "http://$host:$SERVER_PORT"
     }
 
     private fun lanIpv4Address(): String? =

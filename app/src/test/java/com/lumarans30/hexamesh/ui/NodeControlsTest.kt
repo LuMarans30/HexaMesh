@@ -18,7 +18,7 @@ class NodeControlsTest {
     fun `selection is disabled while loading, running or unloading`() {
         assertFalse(selectionEnabled(NodeState.Starting("/models/a.gguf")))
         assertFalse(selectionEnabled(NodeState.Stopping("/models/a.gguf")))
-        assertFalse(selectionEnabled(NodeState.Running("/models/a.gguf", "http://127.0.0.1/v1")))
+        assertFalse(selectionEnabled(NodeState.Running("/models/a.gguf", "http://127.0.0.1:8080")))
     }
 
     @Test
@@ -37,7 +37,7 @@ class NodeControlsTest {
     fun `load is refused while busy or running`() {
         assertFalse(canLoad(NodeState.Starting("/models/a.gguf"), hasSelection = true))
         assertFalse(canLoad(NodeState.Stopping("/models/a.gguf"), hasSelection = true))
-        assertFalse(canLoad(NodeState.Running("/models/a.gguf", "http://127.0.0.1/v1"), true))
+        assertFalse(canLoad(NodeState.Running("/models/a.gguf", "http://127.0.0.1:8080"), true))
         assertFalse(canLoad(NodeState.Idle, hasSelection = true))
     }
 }

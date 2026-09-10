@@ -241,10 +241,10 @@ private fun detail(state: NodeState, apiKey: String): String =
         is NodeState.Running ->
             buildString {
                 appendLine("Serving: ${File(state.modelPath).name}")
-                appendLine("OpenAI-compatible endpoint:")
-                appendLine(state.endpoint)
-                appendLine("API Key: $apiKey")
-                append("(point Open WebUI / any client at it)")
+                appendLine()
+                appendLine("Web UI: ${state.serverUrl}/")
+                appendLine("OpenAI-compatible API: ${state.serverUrl}/v1")
+                appendLine("API key: $apiKey")
             }
 
         is NodeState.Error -> "Error: ${state.message}"
