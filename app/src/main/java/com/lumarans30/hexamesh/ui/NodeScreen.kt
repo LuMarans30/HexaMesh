@@ -16,9 +16,11 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
@@ -31,6 +33,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.lumarans30.hexamesh.R
@@ -88,7 +91,11 @@ fun nodeScreen(
 
             Spacer(Modifier.height(16.dp))
 
-            Text(detail(state, apiKey), style = MaterialTheme.typography.bodyMedium)
+            statusSection(state, apiKey)
+
+            Spacer(Modifier.height(16.dp))
+
+            batteryCard(exempt = batteryExempt, onFix = onFixBattery)
 
             Spacer(Modifier.height(24.dp))
 
@@ -100,10 +107,6 @@ fun nodeScreen(
             ) {
                 Text(controls.label)
             }
-
-            Spacer(Modifier.height(24.dp))
-
-            batteryCard(exempt = batteryExempt, onFix = onFixBattery)
         }
     }
 }
@@ -232,23 +235,102 @@ private fun controlsFor(
         is NodeState.Running -> Controls(stringResource(R.string.stop_node), true, onStop)
     }
 
-private fun detail(state: NodeState, apiKey: String): String =
+@Composable
+private fun statusSection(state: NodeState, apiKey: String) {
     when (state) {
-        is NodeState.Stopped -> "Node stopped."
-        is NodeState.Starting -> "Starting llama-server..."
-        is NodeState.Stopping -> "Stopping llama-server..."
-        is NodeState.Idle -> "Service running, but no model to load."
         is NodeState.Running ->
-            buildString {
-                appendLine("Serving: ${File(state.modelPath).name}")
-                appendLine()
-                appendLine("Web UI: ${state.serverUrl}/")
-                appendLine("OpenAI-compatible API: ${state.serverUrl}/v1")
-                appendLine("API key: $apiKey")
+            servingCard(
+                modelName = File(state.modelPath).name,
+                serverUrl = state.serverUrl,
+                apiKey = apiKey,
+            )
+
+        is NodeState.Stopped -> statusText("Node stopped.")
+        is NodeState.Starting -> statusText("Starting llama-server...")
+        is NodeState.Stopping -> statusText("Stopping llama-server...")
+        is NodeState.Idle -> statusText("Service running, but no model to load.")
+        is NodeState.Error -> statusText("Error: ${state.message}")
+    }
+}
+
+@Composable
+private fun statusText(text: String) {
+    Text(text, style = MaterialTheme.typography.bodyMedium)
+}
+
+@Composable
+private fun servingCard(modelName: String, serverUrl: String, apiKey: String) {
+    val accent = MaterialTheme.colorScheme.primary
+
+    Surface(
+        color = accent.copy(alpha = 0.16f),
+        shape = RoundedCornerShape(16.dp),
+        modifier = Modifier.fillMaxWidth(),
+    ) {
+        Column(Modifier.padding(16.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Box(
+                    modifier = Modifier.size(40.dp).background(accent, CircleShape),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Text(
+                        text = "✓",
+                        color = MaterialTheme.colorScheme.onPrimary,
+                        style = MaterialTheme.typography.titleMedium,
+                    )
+                }
+
+                Spacer(Modifier.width(16.dp))
+
+                Column(Modifier.weight(1f)) {
+                    Text(
+                        text = "Node is serving",
+                        color = accent,
+                        style = MaterialTheme.typography.titleMedium,
+                    )
+                    Text(
+                        text = modelName,
+                        color = accent.copy(alpha = 0.8f),
+                        style = MaterialTheme.typography.bodyMedium,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                }
             }
 
-        is NodeState.Error -> "Error: ${state.message}"
+            Spacer(Modifier.height(16.dp))
+
+            HorizontalDivider(color = accent.copy(alpha = 0.25f))
+
+            Spacer(Modifier.height(16.dp))
+
+            connectionRow("Web UI", "$serverUrl/", accent)
+            Spacer(Modifier.height(12.dp))
+            connectionRow("API", "$serverUrl/v1", accent)
+            Spacer(Modifier.height(12.dp))
+            connectionRow("API key", apiKey, accent)
+        }
     }
+}
+
+@Composable
+private fun connectionRow(label: String, value: String, accent: Color) {
+    Column {
+        Text(
+            text = label,
+            color = accent.copy(alpha = 0.6f),
+            style = MaterialTheme.typography.labelMedium,
+        )
+        Spacer(Modifier.height(2.dp))
+        SelectionContainer {
+            Text(
+                text = value,
+                color = accent,
+                style = MaterialTheme.typography.bodyMedium.copy(fontFamily = FontFamily.Monospace),
+            )
+        }
+    }
+}
 
 internal fun selectionEnabled(state: NodeState): Boolean =
     when (state) {
