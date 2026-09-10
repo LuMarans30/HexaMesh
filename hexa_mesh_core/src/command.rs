@@ -64,9 +64,7 @@ pub fn build_server_command(exe: &Path, config: &ServerConfig) -> Command {
         }
         "npu" | "hexagon" => {
             args.extend(["--device", "HTP0", "-ngl", "99"]);
-            cmd.env("GGML_HEXAGON_DEVICES", "HTP0")
-                .env("GGML_HEXAGON_OPPOLL", "1")
-                .env("GGML_HEXAGON_OPFILTER", "ADD");
+            cmd.env("GGML_HEXAGON_DEVICES", "HTP0");
         }
         _ => {
             args.extend(["-ngl", "0"]);
