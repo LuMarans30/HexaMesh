@@ -12,6 +12,10 @@ import java.net.URI
 import java.util.concurrent.atomic.AtomicBoolean
 import kotlin.concurrent.thread
 import com.lumarans30.hexamesh.R
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.launch
 
 class NodeController(
     context: Context,
@@ -19,6 +23,8 @@ class NodeController(
 ) {
     private val app = context.applicationContext
     private val locks = LockManager(app)
+
+    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
     private var engineThread: Thread? = null
     private var healthThread: Thread? = null
@@ -61,18 +67,20 @@ class NodeController(
     fun stop() {
         if (!stopping.compareAndSet(false, true)) return
 
-        healthThread?.interrupt()
-        healthThread?.join(1_000)
-        healthThread = null
+        scope.launch {
+            healthThread?.interrupt()
+            healthThread?.join(1_000)
+            healthThread = null
 
-        runCatching { engine.stop() }
+            runCatching { engine.stop() }
 
-        engineThread?.let { t -> runCatching { t.join(2_000) } }
-        engineThread = null
+            engineThread?.let { t -> runCatching { t.join(2_000) } }
+            engineThread = null
 
-        engineStarted.set(false)
-        locks.release()
-        NodeState.post(NodeState.Stopped)
+            engineStarted.set(false)
+            locks.release()
+            NodeState.post(NodeState.Stopped)
+        }
     }
 
     private fun fail(message: String) {
