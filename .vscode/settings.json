@@ -1,4 +1,10 @@
 {
     "java.configuration.updateBuildConfiguration": "automatic",
-    "git.detectSubmodules": false
+    "git.detectSubmodules": false,
+    "files.exclude": {
+        "llama.cpp": true
+    },
+    "search.exclude": {
+        "llama.cpp": true
+    }
 }
