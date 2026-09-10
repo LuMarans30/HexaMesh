@@ -1,5 +1,6 @@
 use std::sync::Mutex;
 
+// Values must stay in sync with EngineStatus.kt (Kotlin bridge).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 #[repr(i32)]
 pub enum Status {

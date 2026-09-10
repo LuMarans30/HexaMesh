@@ -120,6 +120,9 @@ class NodeController(
                             lastState = state
                             lastMessage = message
 
+                            // Rust's snapshot still reads STOPPED on the first
+                            // poll; ignore it so it doesn't clobber the Starting
+                            // state posted by start().
                             if (!(first && state == EngineStatus.STOPPED)) {
                                 postEngineStatus(state, message)
                             }

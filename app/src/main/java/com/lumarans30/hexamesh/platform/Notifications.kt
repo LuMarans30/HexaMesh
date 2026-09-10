@@ -11,9 +11,6 @@ import com.lumarans30.hexamesh.MeshService
 import com.lumarans30.hexamesh.R
 import java.io.File
 
-/**
- * Builds the foreground-service notification and its channel.
- */
 class Notifications(context: Context) {
 
     private val app = context.applicationContext
