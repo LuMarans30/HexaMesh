@@ -47,10 +47,12 @@ flowchart TD
 **1. Build llama.cpp for Snapdragon** (requires Docker):
 
 ```bash
+git clone https://github.com/LuMarans30/HexaMesh
+cd HexaMesh
 ./build_llama.sh
 ```
 
-This script fetches the web UI assets and builds llama.cpp. Gradle then picks the artifacts up from `../llama.cpp/pkg-adb/llama.cpp/` automatically in the next step.
+This script fetches the web UI assets and builds llama.cpp. Gradle then picks the artifacts up from `llama.cpp/pkg-adb/llama.cpp/` automatically in the next step.
 
 **2. Install the app** (requires Android SDK and Rust with `cargo-ndk`):
 
@@ -59,7 +61,6 @@ First connect the phone to the PC via USB and enable USB debugging.
 ```bash
 cargo install cargo-ndk
 rustup target add aarch64-linux-android
-cd hexa_mesh
 ./gradlew installDebug
 ```
 
@@ -72,13 +73,15 @@ adb shell mkdir -p /storage/emulated/0/Android/data/com.lumarans30.hexamesh/file
 adb push <YOUR_MODEL_NAME>.gguf /storage/emulated/0/Android/data/com.lumarans30.hexamesh/files/models/
 ```
 
-Open the app, grant notification permission and the battery-optimization exemption. The screen shows the LAN endpoint (e.g. `http://192.168.1.85:8080/v1`).
+Open the app, grant notification permission and the battery-optimization exemption. The screen shows the LAN endpoint (e.g. `http://192.168.1.85:8080/v1`) and the API key.
 
-Quick test over USB:
+The endpoint is protected by `--api-key`, so clients must send the key shown on screen.
+
+Quick test over USB (replace `$API_KEY` with the key shown in the app):
 
 ```bash
 adb forward tcp:8080 tcp:8080
-curl http://localhost:8080/v1/models
+curl -H "Authorization: Bearer $API_KEY" http://localhost:8080/v1/models
 ```
 
 ## Acknowledgements
