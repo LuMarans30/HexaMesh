@@ -51,11 +51,12 @@ class MeshService : Service() {
         )
 
         if (modelPath == null) {
-            Log.w(TAG, "No .gguf model found.")
-        } else {
-            Log.i(TAG, "Starting node with model: $modelPath")
+            Log.w(TAG, "No .gguf model found. Skipping node start.")
+            stopSelf()
+            return START_NOT_STICKY
         }
 
+        Log.i(TAG, "Starting node with model: $modelPath")
         node.start(modelPath)
         return START_STICKY
     }
