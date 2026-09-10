@@ -67,6 +67,9 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         repository = ModelRepository(this)
         workManager = WorkManager.getInstance(this)
+        // Drop finished transfers from a previous session so their terminal
+        // state (and any error message) can't resurface on launch.
+        workManager.pruneWork()
         refreshModels()
         refreshBatteryStatus()
 
