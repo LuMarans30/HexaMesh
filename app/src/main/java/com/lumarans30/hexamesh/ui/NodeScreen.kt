@@ -24,7 +24,9 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
@@ -35,6 +37,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -46,8 +49,10 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.lumarans30.hexamesh.R
+import com.lumarans30.hexamesh.node.DownloadRequest
 import com.lumarans30.hexamesh.node.Model
 import com.lumarans30.hexamesh.node.NodeState
+import com.lumarans30.hexamesh.node.parseDownloadRequest
 import java.io.File
 import java.util.Locale
 
@@ -64,8 +69,12 @@ fun nodeScreen(
     batteryExempt: Boolean,
     apiKey: String,
     adbPushHint: String,
+    download: DownloadStatus?,
+    downloadError: String?,
     onSelect: (Model) -> Unit,
     onDelete: (Model) -> Unit,
+    onDownload: (DownloadRequest) -> Unit,
+    onCancelDownload: () -> Unit,
     onStart: () -> Unit,
     onStop: () -> Unit,
     onFixBattery: () -> Unit,
@@ -103,6 +112,15 @@ fun nodeScreen(
                     onDelete = { pendingDelete = it },
                 )
             }
+
+            Spacer(Modifier.height(16.dp))
+
+            downloadSection(
+                status = download,
+                error = downloadError,
+                onDownload = onDownload,
+                onCancel = onCancelDownload,
+            )
 
             Spacer(Modifier.height(16.dp))
 
@@ -272,6 +290,92 @@ private fun deleteDialog(model: Model, onConfirm: () -> Unit, onDismiss: () -> U
             TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel)) }
         },
     )
+}
+
+@Composable
+private fun downloadSection(
+    status: DownloadStatus?,
+    error: String?,
+    onDownload: (DownloadRequest) -> Unit,
+    onCancel: () -> Unit,
+) {
+    var input by rememberSaveable { mutableStateOf("") }
+    var validationError by remember { mutableStateOf<String?>(null) }
+
+    Column {
+        OutlinedTextField(
+            value = input,
+            onValueChange = {
+                input = it
+                validationError = null
+            },
+            label = { Text("Model URL") },
+            placeholder = { Text("https://huggingface.co/…/model.gguf") },
+            singleLine = true,
+            isError = validationError != null,
+            supportingText = validationError?.let { message -> { Text(message) } },
+            enabled = status == null,
+            modifier = Modifier.fillMaxWidth(),
+        )
+
+        Spacer(Modifier.height(8.dp))
+
+        if (status == null) {
+            Button(
+                onClick = {
+                    val request = parseDownloadRequest(input)
+                    if (request == null) {
+                        validationError = "Enter a direct link to a .gguf file"
+                    } else {
+                        onDownload(request)
+                    }
+                },
+                enabled = input.isNotBlank(),
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                Text("Download")
+            }
+        } else {
+            LinearProgressIndicator(
+                progress = { status.fraction },
+                modifier = Modifier.fillMaxWidth(),
+            )
+            Spacer(Modifier.height(4.dp))
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    text = status.fileName,
+                    style = MaterialTheme.typography.bodySmall,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.weight(1f),
+                )
+                TextButton(onClick = onCancel) { Text("Cancel") }
+            }
+            Text(status.label, style = MaterialTheme.typography.bodySmall)
+        }
+
+        error?.let {
+            Spacer(Modifier.height(4.dp))
+            Text(
+                text = it,
+                color = MaterialTheme.colorScheme.error,
+                style = MaterialTheme.typography.bodySmall,
+            )
+        }
+    }
+}
+
+data class DownloadStatus(val fileName: String, val downloaded: Long, val total: Long) {
+    val fraction: Float
+        get() = if (total > 0) (downloaded.toFloat() / total).coerceIn(0f, 1f) else 0f
+
+    val label: String
+        get() =
+            if (total > 0) {
+                "${(fraction * 100).toInt()}% · ${formatSize(downloaded)} / ${formatSize(total)}"
+            } else {
+                formatSize(downloaded)
+            }
 }
 
 private class Controls(val label: String, val enabled: Boolean, val onClick: () -> Unit)
