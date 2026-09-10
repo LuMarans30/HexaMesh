@@ -70,14 +70,33 @@ rustup target add aarch64-linux-android
 
 ## Running
 
-Push a GGUF model:
+### Adding models
+
+The app can download a model directly. Paste a link to a `.gguf` file into
+**Model URL** and tap **Download** — a Hugging Face `resolve` or `blob` link
+works as well as any direct `http(s)` link:
+
+```text
+https://huggingface.co/<user>/<repo>/resolve/main/<file>.gguf
+https://huggingface.co/<user>/<repo>/blob/main/<file>.gguf
+```
+
+Downloads run in a foreground worker, so they keep going while the app is in the
+background, and inline progress is shown with a cancel button.
+
+You can also push a file over adb:
 
 ```bash
 adb shell mkdir -p /storage/emulated/0/Android/data/com.lumarans30.hexamesh/files/models
 adb push <YOUR_MODEL_NAME>.gguf /storage/emulated/0/Android/data/com.lumarans30.hexamesh/files/models/
 ```
 
-Then open the app, select the model, and tap **Start Node**. Once it is serving, the app shows the LAN endpoint and API key. From another device on the same network, use:
+To delete a model, tap the bin icon next to it. Deletion is disabled while the
+node is running.
+
+### Serving
+
+Open the app, select the model, and tap **Start Node**. Once it is serving, the app shows the LAN endpoint and API key. From another device on the same network, use:
 
 ```text
 http://<phone-ip>:8080/v1
