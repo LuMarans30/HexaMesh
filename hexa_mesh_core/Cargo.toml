@@ -20,4 +20,4 @@ incremental = false
 debug = false
 strip = "symbols"
 overflow-checks = false
-panic = "abort"
+panic = "unwind"

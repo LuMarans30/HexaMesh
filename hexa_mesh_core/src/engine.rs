@@ -7,6 +7,7 @@ use std::fs::{File, OpenOptions};
 use std::io::{BufRead, BufReader, LineWriter, Read, Write};
 use std::net::{Ipv4Addr, SocketAddr, TcpStream};
 use std::os::unix::process::ExitStatusExt;
+use std::panic::{AssertUnwindSafe, catch_unwind};
 use std::path::Path;
 use std::process::{Child, ExitStatus};
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -53,20 +54,39 @@ pub fn run_supervisor(config: ServerConfig) {
         }
     };
 
+    let port = config.port;
+    let is_alive = Arc::new(AtomicBool::new(true));
+
+    let result = catch_unwind(AssertUnwindSafe(|| {
+        supervise_child(&mut child, port, log_writer, Arc::clone(&is_alive));
+    }));
+
+    if result.is_err() {
+        is_alive.store(false, Ordering::Relaxed);
+        error!("llama-server supervisor panicked; killing child process");
+
+        let _ = child.kill();
+        let _ = child.wait();
+    }
+}
+
+fn supervise_child(
+    child: &mut Child,
+    port: i32,
+    log_writer: Option<Arc<Mutex<LineWriter<File>>>>,
+    is_alive: Arc<AtomicBool>,
+) {
     let pid = child.id();
     info!("llama-server running with PID: {pid}");
 
-    // Shared flag so the readiness probe stops immediately if the child exits
-    let is_alive = Arc::new(AtomicBool::new(true));
-
     if let Some(stderr) = child.stderr.take() {
-        spawn_pump(stderr, log::Level::Info, log_writer.clone(), "");
+        spawn_pump(stderr, log::Level::Info, log_writer, "");
     }
 
-    if let Ok(port) = u16::try_from(config.port) {
+    if let Ok(port) = u16::try_from(port) {
         spawn_readiness_probe(port, Arc::clone(&is_alive));
     } else {
-        error!("Invalid port specified: {}", config.port);
+        error!("Invalid port specified: {}", port);
     }
 
     while !STOP_REQUESTED.load(Ordering::Relaxed) {
@@ -147,7 +167,7 @@ fn spawn_readiness_probe(port: u16, is_alive: Arc<AtomicBool>) {
     });
 }
 
-fn terminate_process(mut child: Child) {
+fn terminate_process(child: &mut Child) {
     let pid = child.id() as libc::pid_t;
     info!("Terminating child process {pid}");
 

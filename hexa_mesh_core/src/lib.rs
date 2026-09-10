@@ -2,7 +2,9 @@ use android_logger::Config;
 use jni::EnvUnowned;
 use jni::errors::ThrowRuntimeExAndDefault;
 use jni::objects::JObject;
+use jni::strings::JNIString;
 use log::info;
+use std::panic::{AssertUnwindSafe, catch_unwind};
 use std::sync::OnceLock;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::thread;
@@ -16,10 +18,40 @@ mod engine;
 
 const TAG: &str = "HexaRust";
 
-// Shared state accessible by the engine supervisor
 pub(crate) static STOP_REQUESTED: AtomicBool = AtomicBool::new(false);
 static IS_RUNNING: AtomicBool = AtomicBool::new(false);
 static LOGGER_INIT: OnceLock<()> = OnceLock::new();
+
+macro_rules! jni_catch {
+    ($env:expr, $name:expr, $body:expr) => {
+        $env.with_env(|e| -> jni::errors::Result<()> {
+            match catch_unwind(AssertUnwindSafe(|| $body(&mut *e))) {
+                Ok(res) => res,
+                Err(_) => {
+                    log::error!("Panic caught at JNI boundary: {}", $name);
+
+                    if !e.exception_check() {
+                        let _ = e.throw_new(
+                            JNIString::new("java/lang/RuntimeException"),
+                            JNIString::new(concat!("native Rust panic in ", $name)),
+                        );
+                    }
+
+                    Ok(())
+                }
+            }
+        })
+        .resolve::<ThrowRuntimeExAndDefault>()
+    };
+}
+
+struct RunningGuard;
+
+impl Drop for RunningGuard {
+    fn drop(&mut self) {
+        IS_RUNNING.store(false, Ordering::Relaxed);
+    }
+}
 
 #[unsafe(no_mangle)]
 pub extern "system" fn Java_com_lumarans30_hexamesh_bridge_RustEngine_start<'local>(
@@ -28,41 +60,59 @@ pub extern "system" fn Java_com_lumarans30_hexamesh_bridge_RustEngine_start<'loc
     config_obj: JObject<'local>,
 ) {
     ensure_logger();
+    jni_catch!(env, "RustEngine.start", |e| start_inner(e, &config_obj))
+}
 
-    env.with_env(|e| -> jni::errors::Result<()> {
-        if IS_RUNNING.swap(true, Ordering::Relaxed) {
-            log::warn!("Engine supervisor already active. Ignoring duplicate start.");
-            return Ok(());
+fn start_inner<'local>(
+    e: &mut jni::Env<'local>,
+    config_obj: &JObject<'local>,
+) -> jni::errors::Result<()> {
+    if IS_RUNNING.swap(true, Ordering::Relaxed) {
+        log::warn!("Engine supervisor already active. Ignoring duplicate start.");
+        return Ok(());
+    }
+
+    let guard = RunningGuard;
+
+    let config = match ServerConfig::from_jobject(e, config_obj) {
+        Ok(c) => c,
+        Err(err) => {
+            log::error!("Failed to parse ServerConfig from Kotlin: {:?}", err);
+            return Err(err);
         }
+    };
 
-        let config = match ServerConfig::from_jobject(e, &config_obj) {
-            Ok(c) => c,
-            Err(err) => {
-                IS_RUNNING.store(false, Ordering::Relaxed);
-                log::error!("Failed to parse ServerConfig from Kotlin: {:?}", err);
-                return Err(err);
-            }
-        };
+    STOP_REQUESTED.store(false, Ordering::Relaxed);
 
-        STOP_REQUESTED.store(false, Ordering::Relaxed);
-
-        thread::spawn(move || {
+    thread::spawn(move || {
+        let result = catch_unwind(AssertUnwindSafe(|| {
             engine::run_supervisor(config);
-            IS_RUNNING.store(false, Ordering::Relaxed);
-        });
+        }));
 
-        Ok(())
-    })
-    .resolve::<ThrowRuntimeExAndDefault>();
+        IS_RUNNING.store(false, Ordering::Relaxed);
+
+        if result.is_err() {
+            log::error!("engine::run_supervisor panicked");
+        }
+    });
+
+    std::mem::forget(guard);
+
+    Ok(())
 }
 
 #[unsafe(no_mangle)]
 pub extern "system" fn Java_com_lumarans30_hexamesh_bridge_RustEngine_stop(
-    _env: EnvUnowned,
+    mut env: EnvUnowned,
     _this: JObject,
 ) {
-    info!("Stop requested from Android Service.");
-    STOP_REQUESTED.store(true, Ordering::Relaxed);
+    ensure_logger();
+
+    jni_catch!(env, "RustEngine.stop", |_e| {
+        info!("Stop requested from Android Service.");
+        STOP_REQUESTED.store(true, Ordering::Relaxed);
+        Ok(())
+    })
 }
 
 fn ensure_logger() {
