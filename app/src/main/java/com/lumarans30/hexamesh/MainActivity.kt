@@ -28,6 +28,7 @@ class MainActivity : ComponentActivity() {
 
     private var available by mutableStateOf<List<Model>>(emptyList())
     private var selectedPath by mutableStateOf<String?>(null)
+    private var batteryExempt by mutableStateOf(false)
 
     private val apiKey by lazy { ApiKeyManager.getOrCreateApiKey(this) }
 
@@ -36,6 +37,7 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         repository = ModelRepository(this)
         refreshModels()
+        refreshBatteryStatus()
 
         setContent {
             hexaMeshTheme {
@@ -50,17 +52,22 @@ class MainActivity : ComponentActivity() {
                     onSelect = ::selectModel,
                     onStart = ::startMeshService,
                     onStop = ::stopMeshService,
+                    onFixBattery = ::requestIgnoreBatteryOptimizations,
                 )
             }
         }
 
         requestNotificationPermission()
-        window.decorView.post { requestIgnoreBatteryOptimizations() }
     }
 
     override fun onResume() {
         super.onResume()
         refreshModels()
+        refreshBatteryStatus()
+    }
+
+    private fun refreshBatteryStatus() {
+        batteryExempt = isIgnoringBatteryOptimizations()
     }
 
     private fun refreshModels() {
