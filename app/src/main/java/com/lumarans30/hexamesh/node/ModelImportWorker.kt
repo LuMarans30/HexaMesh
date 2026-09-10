@@ -1,0 +1,116 @@
+package com.lumarans30.hexamesh.node
+
+import android.app.Notification
+import android.app.NotificationChannel
+import android.app.NotificationManager
+import android.content.Context
+import android.content.pm.ServiceInfo
+import android.util.Log
+import androidx.work.CoroutineWorker
+import androidx.work.ForegroundInfo
+import androidx.work.WorkerParameters
+import androidx.work.workDataOf
+import com.lumarans30.hexamesh.R
+import java.io.File
+import kotlinx.coroutines.CancellationException
+
+/**
+ * Imports a picked `.gguf` into the models directory — moving it when possible,
+ * copying otherwise. Runs as a foreground worker so a cross-volume copy (which
+ * can be several gigabytes) survives the app being backgrounded.
+ */
+class ModelImportWorker(appContext: Context, params: WorkerParameters) :
+    CoroutineWorker(appContext, params) {
+
+    override suspend fun doWork(): Result {
+        val sourcePath = inputData.getString(KEY_SOURCE)
+        val move = inputData.getBoolean(KEY_MOVE, false)
+        if (sourcePath.isNullOrBlank()) {
+            return Result.failure(workDataOf(KEY_ERROR to "No source file was provided."))
+        }
+
+        val source = File(sourcePath)
+        val modelsDir =
+            File(applicationContext.getExternalFilesDir(null), MODELS_DIR).apply { mkdirs() }
+
+        return try {
+            runCatching { setForeground(foregroundInfo(source.name, percent = null)) }
+
+            val outcome =
+                importModel(source, modelsDir, move) { copied, total ->
+                    report(source.name, copied, total)
+                }
+
+            Result.success(
+                workDataOf(
+                    KEY_FILE_NAME to outcome.target.name,
+                    KEY_PATH to outcome.target.absolutePath,
+                    KEY_WARNING to (outcome.warning ?: ""),
+                )
+            )
+        } catch (cancellation: CancellationException) {
+            throw cancellation
+        } catch (t: Throwable) {
+            Log.w(TAG, "Import failed", t)
+            Result.failure(workDataOf(KEY_ERROR to (t.message ?: "Import failed.")))
+        }
+    }
+
+    private suspend fun report(fileName: String, copied: Long, total: Long) {
+        val percent = if (total > 0) ((copied * 100) / total).toInt() else -1
+        setProgress(
+            workDataOf(
+                KEY_FILE_NAME to fileName,
+                KEY_DOWNLOADED to copied,
+                KEY_TOTAL to total,
+                KEY_PROGRESS to percent,
+            )
+        )
+        runCatching { setForeground(foregroundInfo(fileName, percent.takeIf { it >= 0 })) }
+    }
+
+    private fun foregroundInfo(fileName: String, percent: Int?): ForegroundInfo {
+        ensureChannel()
+        val notification =
+            Notification.Builder(applicationContext, CHANNEL_ID)
+                .setSmallIcon(R.drawable.ic_stat_hexagon)
+                .setContentTitle("Importing model")
+                .setContentText(fileName)
+                .setOngoing(true)
+                .setOnlyAlertOnce(true)
+                .setProgress(PROGRESS_MAX, percent ?: 0, percent == null)
+                .build()
+
+        return ForegroundInfo(
+            NOTIFICATION_ID,
+            notification,
+            ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC,
+        )
+    }
+
+    private fun ensureChannel() {
+        val manager = applicationContext.getSystemService(NotificationManager::class.java) ?: return
+        manager.createNotificationChannel(
+            NotificationChannel(CHANNEL_ID, "Model imports", NotificationManager.IMPORTANCE_LOW)
+        )
+    }
+
+    companion object {
+        const val WORK_NAME = "hexamesh-model-import"
+        const val KEY_SOURCE = "sourcePath"
+        const val KEY_MOVE = "move"
+        const val KEY_FILE_NAME = "fileName"
+        const val KEY_PATH = "path"
+        const val KEY_WARNING = "warning"
+        const val KEY_ERROR = "error"
+        const val KEY_PROGRESS = "progress"
+        const val KEY_DOWNLOADED = "downloaded"
+        const val KEY_TOTAL = "total"
+
+        private const val TAG = "ModelImport"
+        private const val MODELS_DIR = "models"
+        private const val CHANNEL_ID = "hexamesh_imports"
+        private const val NOTIFICATION_ID = 3
+        private const val PROGRESS_MAX = 100
+    }
+}
