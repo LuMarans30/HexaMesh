@@ -46,7 +46,7 @@ class MainActivity : ComponentActivity() {
                     state = state,
                     models = available,
                     selectedPath = selectedPath,
-                    batteryExempt = isIgnoringBatteryOptimizations(),
+                    batteryExempt = batteryExempt,
                     apiKey = apiKey,
                     adbPushHint = repository.adbPushHint(),
                     onSelect = ::selectModel,
