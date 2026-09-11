@@ -73,8 +73,8 @@ reason.
 | --- | --- | --- |
 | 0 | State refactor: ViewModels, `nodeScreen(state, actions)`, no process-global node state, bound-service re-sync | ✅ landed |
 | 1 | Tab shell (Manage + placeholders) | ✅ landed |
-| 2 | Settings: persisted port + mDNS/NSD + fallback IPs | port landed; NSD + fallback IPs next |
-| 3 | Logs tab (local diagnostics only) | |
+| 2 | Settings: persisted port + mDNS/NSD + fallback IPs | port landed; NSD + fallback IPs moved to phase 4 |
+| 3 | Logs tab (local diagnostics only) | in progress |
 | 4 | Mesh tab + per-peer logs | blocked on RPC backend |
 
 Phase notes (the load-bearing bits):
@@ -85,9 +85,13 @@ Phase notes (the load-bearing bits):
   already declared); keep a persisted fallback-IP list; keep the "plain HTTP,
   trusted LAN only" warning. Port landed: `platform/ServerSettings.kt` owns the
   value, `node/NodeSettings.kt` is the JVM-testable seam, and the Settings tab
-  saves a change that the node reads on its next start.
-- **3 —** build the data sources first: tail the server's `--log-file`, poll
-  `127.0.0.1:8080/slots` for tok/s, read memory
+  saves a change that the node reads on its next start. NSD discovery and the
+  fallback-IP list are deferred to Phase 4: until RPC meshing exists they have no
+  consumer, and building them now would freeze the peer protocol before
+  `PeerNode` is defined.
+- **3 —** build the data sources first: tail the supervisor's
+  `cacheDir/llama-server.log` (already written by `engine.rs` `spawn_pump`, so no
+  core change needed), poll `127.0.0.1:<port>/slots` for tok/s, read memory
   (`ActivityManager`/`Debug.MemoryInfo`/`/proc/<pid>/status`) and thermal
   (`PowerManager` + `/sys/class/thermal/*`). Terminal view is a `LazyColumn`
   over a ~2000-line capped buffer. Per-peer logs are out of scope here.
@@ -121,8 +125,8 @@ Phase notes (the load-bearing bits):
    Never reintroduce a process-global singleton.
 3. **Port changes:** saved immediately; the node reads the port on each start, so
    a running server is never disturbed.
-4. **Terminal logs:** tail `--log-file`. A JNI `pollLogs()` ring buffer was
-   rejected.
+4. **Terminal logs:** tail the supervisor's `llama-server.log`. A JNI
+   `pollLogs()` ring buffer was rejected.
 5. **Mesh model:** the prompt-receiving node is the Coordinator; it queries
    mDNS peers and ranks them by available VRAM/RAM and LAN latency (mDNS ping).
 
