@@ -24,8 +24,6 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.ExtendedFloatingActionButton
-import androidx.compose.material3.FabPosition
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -35,11 +33,9 @@ import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.RadioButton
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -69,8 +65,8 @@ import java.util.Locale
 import kotlinx.coroutines.launch
 
 /**
- * Top-level control panel: model picker, node status and the single primary
- * start/stop action.
+ * Manage tab: model picker, node status and the transfer/diagnostics panels.
+ * The shell owns the top bar, the persistent action bar and the bottom nav.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -92,83 +88,54 @@ fun nodeScreen(
             .invokeOnCompletion { if (!sheetState.isVisible) sheetOpen = false }
     }
 
-    Scaffold(
-        modifier = modifier.fillMaxSize(),
-        topBar = {
-            TopAppBar(
-                title = {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(
-                            painter = painterResource(R.drawable.ic_hexagon),
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.size(24.dp),
-                        )
-                        Spacer(Modifier.width(10.dp))
-                        Text(stringResource(R.string.app_name))
-                    }
-                }
+    Column(
+        modifier =
+            modifier
+                .fillMaxSize()
+                .verticalScroll(rememberScrollState())
+                .padding(24.dp),
+    ) {
+        statusHero(nodeState, state.apiKey)
+
+        Spacer(Modifier.height(24.dp))
+
+        modelsHeader(onAdd = { sheetOpen = true })
+
+        Spacer(Modifier.height(8.dp))
+
+        if (state.models.isEmpty()) {
+            Text(
+                stringResource(R.string.no_model_found),
+                style = MaterialTheme.typography.bodyMedium,
             )
-        },
-        floatingActionButton = {
-            primaryActionFab(
-                state = nodeState,
-                hasSelection = state.selectedPath != null,
-                onStart = actions.onStart,
-                onStop = actions.onStop,
+            Text("  ${state.adbPushHint}", style = MaterialTheme.typography.bodySmall)
+        } else {
+            modelList(
+                models = state.models,
+                selectedPath = state.selectedPath,
+                enabled = selectionEnabled(nodeState),
+                canDelete = { canDelete(nodeState, it, activeModelPath) },
+                onSelect = actions.onSelect,
+                onDelete = { pendingDelete = it },
             )
-        },
-        floatingActionButtonPosition = FabPosition.End,
-    ) { innerPadding ->
-        Column(
-            modifier =
-                Modifier.fillMaxSize()
-                    .padding(innerPadding)
-                    .verticalScroll(rememberScrollState())
-                    .padding(24.dp),
-        ) {
-            statusHero(nodeState, state.apiKey)
-
-            Spacer(Modifier.height(24.dp))
-
-            modelsHeader(onAdd = { sheetOpen = true })
-
-            Spacer(Modifier.height(8.dp))
-
-            if (state.models.isEmpty()) {
-                Text(
-                    stringResource(R.string.no_model_found),
-                    style = MaterialTheme.typography.bodyMedium,
-                )
-                Text("  ${state.adbPushHint}", style = MaterialTheme.typography.bodySmall)
-            } else {
-                modelList(
-                    models = state.models,
-                    selectedPath = state.selectedPath,
-                    enabled = selectionEnabled(nodeState),
-                    canDelete = { canDelete(nodeState, it, activeModelPath) },
-                    onSelect = actions.onSelect,
-                    onDelete = { pendingDelete = it },
-                )
-            }
-
-            Spacer(Modifier.height(16.dp))
-
-            transfersSection(
-                download = state.download,
-                downloadError = state.downloadError,
-                importProgress = state.importProgress,
-                importError = state.importError,
-                onCancelDownload = actions.onCancelDownload,
-                onCancelImport = actions.onCancelImport,
-            )
-
-            Spacer(Modifier.height(16.dp))
-
-            diagnostics(exempt = state.batteryExempt, onFix = actions.onFixBattery)
-
-            Spacer(Modifier.height(96.dp))
         }
+
+        Spacer(Modifier.height(16.dp))
+
+        transfersSection(
+            download = state.download,
+            downloadError = state.downloadError,
+            importProgress = state.importProgress,
+            importError = state.importError,
+            onCancelDownload = actions.onCancelDownload,
+            onCancelImport = actions.onCancelImport,
+        )
+
+        Spacer(Modifier.height(16.dp))
+
+        diagnostics(exempt = state.batteryExempt, onFix = actions.onFixBattery)
+
+        Spacer(Modifier.height(24.dp))
     }
 
     if (sheetOpen) {
@@ -232,76 +199,6 @@ private fun modelsHeader(onAdd: () -> Unit) {
                 painter = painterResource(R.drawable.ic_add),
                 contentDescription = stringResource(R.string.add_model),
             )
-        }
-    }
-}
-
-@Composable
-private fun primaryActionFab(
-    state: NodeState,
-    hasSelection: Boolean,
-    onStart: () -> Unit,
-    onStop: () -> Unit,
-) {
-    val busy = state is NodeState.Starting || state is NodeState.Stopping
-    val running = state is NodeState.Running || state is NodeState.Idle
-    val enabled = when {
-        busy -> false
-        running -> true
-        else -> canLoad(state, hasSelection)
-    }
-
-    val containerColor =
-        if (enabled) {
-            MaterialTheme.colorScheme.primary
-        } else {
-            MaterialTheme.colorScheme.surfaceVariant
-        }
-    val contentColor =
-        if (enabled) {
-            MaterialTheme.colorScheme.onPrimary
-        } else {
-            MaterialTheme.colorScheme.onSurfaceVariant
-        }
-
-    ExtendedFloatingActionButton(
-        onClick = {
-            when {
-                busy -> Unit
-                running -> onStop()
-                else -> onStart()
-            }
-        },
-        containerColor = containerColor,
-        contentColor = contentColor,
-    ) {
-        when {
-            busy -> {
-                CircularProgressIndicator(
-                    modifier = Modifier.size(20.dp),
-                    strokeWidth = 2.dp,
-                    color = contentColor,
-                )
-                Spacer(Modifier.width(12.dp))
-                Text(
-                    stringResource(
-                        if (state is NodeState.Starting) R.string.starting_node
-                        else R.string.stopping_node
-                    )
-                )
-            }
-
-            running -> {
-                Icon(painter = painterResource(R.drawable.ic_stop), contentDescription = null)
-                Spacer(Modifier.width(12.dp))
-                Text(stringResource(R.string.stop_node))
-            }
-
-            else -> {
-                Icon(painter = painterResource(R.drawable.ic_play), contentDescription = null)
-                Spacer(Modifier.width(12.dp))
-                Text(stringResource(R.string.start_node))
-            }
         }
     }
 }

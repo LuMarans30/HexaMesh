@@ -19,7 +19,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import com.lumarans30.hexamesh.platform.AllFilesAccess
-import com.lumarans30.hexamesh.ui.ManagerRoute
+import com.lumarans30.hexamesh.ui.HexaMeshApp
 import com.lumarans30.hexamesh.ui.NodeViewModel
 import com.lumarans30.hexamesh.ui.TransferViewModel
 import com.lumarans30.hexamesh.ui.hexaMeshTheme
@@ -46,7 +46,7 @@ class MainActivity : ComponentActivity() {
 
         setContent {
             hexaMeshTheme {
-                ManagerRoute(
+                HexaMeshApp(
                     nodeViewModel = nodeViewModel,
                     transferViewModel = transferViewModel,
                     batteryExempt = batteryExempt,

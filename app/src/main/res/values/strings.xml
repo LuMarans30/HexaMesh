@@ -37,4 +37,16 @@
     <string name="delete_model">Delete %1$s</string>
     <string name="delete">Delete</string>
     <string name="cancel">Cancel</string>
+
+    <string name="tab_manage">Manage</string>
+    <string name="tab_mesh">Mesh</string>
+    <string name="tab_logs">Logs</string>
+    <string name="tab_settings">Settings</string>
+
+    <string name="mesh_placeholder_title">Mesh</string>
+    <string name="mesh_placeholder_body">RPC meshing and peer discovery are not built yet.</string>
+    <string name="logs_placeholder_title">Logs</string>
+    <string name="logs_placeholder_body">Local diagnostics are coming in a later update.</string>
+    <string name="settings_placeholder_title">Settings</string>
+    <string name="settings_placeholder_body">Persisted port and discovery settings are coming in a later update.</string>
 </resources>
