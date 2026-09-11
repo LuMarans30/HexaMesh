@@ -1,13 +1,18 @@
 package com.lumarans30.hexamesh.ui
 
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -21,25 +26,68 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.lumarans30.hexamesh.R
+import com.lumarans30.hexamesh.logs.NodeMetrics
+import java.util.Locale
 
 /**
- * Logs tab: tails the supervisor's log file while composed. [tail] blocks for as
+ * Logs tab: a diagnostics strip over a live terminal. [observe] blocks for as
  * long as the tab is visible, so the LaunchedEffect cancels it on the way out.
  */
 @Composable
 fun logsScreen(
     lines: List<String>,
-    tail: suspend () -> Unit,
+    metrics: NodeMetrics,
+    observe: suspend () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    LaunchedEffect(Unit) { tail() }
+    LaunchedEffect(Unit) { observe() }
 
-    if (lines.isEmpty()) {
-        logsEmpty(modifier)
-    } else {
-        logsList(lines, modifier)
+    Column(modifier = modifier.fillMaxSize()) {
+        metricsPanel(metrics)
+
+        if (lines.isEmpty()) {
+            logsEmpty(Modifier.weight(1f))
+        } else {
+            logsList(lines, Modifier.weight(1f))
+        }
     }
 }
+
+@Composable
+private fun metricsPanel(metrics: NodeMetrics) {
+    Surface(tonalElevation = 3.dp, modifier = Modifier.fillMaxWidth()) {
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 10.dp),
+            horizontalArrangement = Arrangement.spacedBy(24.dp),
+        ) {
+            metricValue(stringResource(R.string.metric_tok_s), rate(metrics.predictedPerSecond))
+            metricValue(stringResource(R.string.metric_temp), degrees(metrics.temperatureCelsius))
+        }
+    }
+}
+
+@Composable
+private fun metricValue(label: String, value: String) {
+    Column {
+        Text(
+            text = label,
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        Text(
+            text = value,
+            style = MaterialTheme.typography.bodyMedium.copy(fontFamily = FontFamily.Monospace),
+        )
+    }
+}
+
+private fun rate(value: Double?): String =
+    if (value == null) UNAVAILABLE else String.format(Locale.US, "%.1f", value)
+
+private fun degrees(value: Double?): String =
+    if (value == null) UNAVAILABLE else String.format(Locale.US, "%.1f\u00b0C", value)
+
+private const val UNAVAILABLE = "--"
 
 @Composable
 private fun logsList(lines: List<String>, modifier: Modifier) {
@@ -65,8 +113,7 @@ private fun logsList(lines: List<String>, modifier: Modifier) {
         items(lines) { line ->
             Text(
                 text = line,
-                style =
-                    MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace),
+                style = MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace),
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }

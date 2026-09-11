@@ -40,6 +40,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.lumarans30.hexamesh.R
+import com.lumarans30.hexamesh.logs.NodeMetrics
 import com.lumarans30.hexamesh.node.NodeState
 
 /**
@@ -62,6 +63,7 @@ fun hexaMeshApp(
     val transfer by transferViewModel.uiState.collectAsStateWithLifecycle()
     val launchArgs by settingsViewModel.launchArgs.collectAsStateWithLifecycle()
     val logLines by logsViewModel.lines.collectAsStateWithLifecycle()
+    val nodeMetrics by logsViewModel.metrics.collectAsStateWithLifecycle()
 
     val state =
         ManagerUiState(
@@ -113,7 +115,8 @@ fun hexaMeshApp(
         launchArgs = launchArgs,
         onApplySettings = settingsViewModel::apply,
         logLines = logLines,
-        tailLogs = logsViewModel::tail,
+        nodeMetrics = nodeMetrics,
+        observeLogs = logsViewModel::observe,
         modifier = modifier,
     )
 }
@@ -130,7 +133,8 @@ private fun hexaMeshShell(
     launchArgs: String,
     onApplySettings: (String) -> Unit,
     logLines: List<String>,
-    tailLogs: suspend () -> Unit,
+    nodeMetrics: NodeMetrics,
+    observeLogs: suspend () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     var tab by rememberSaveable { mutableStateOf(HexaTab.Manage) }
@@ -184,7 +188,8 @@ private fun hexaMeshShell(
                 HexaTab.Logs ->
                     logsScreen(
                         lines = logLines,
-                        tail = tailLogs,
+                        metrics = nodeMetrics,
+                        observe = observeLogs,
                         modifier = Modifier.padding(innerPadding),
                     )
 

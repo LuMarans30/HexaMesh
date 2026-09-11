@@ -47,6 +47,8 @@
     <string name="mesh_placeholder_title">Mesh</string>
     <string name="mesh_placeholder_body">RPC meshing and peer discovery are not built yet.</string>
     <string name="logs_empty">No log output yet. Start the node to see llama-server output.</string>
+    <string name="metric_tok_s">tok/s</string>
+    <string name="metric_temp">temp</string>
     <string name="launch_arguments">Launch arguments</string>
     <string name="launch_arguments_hint">Flags passed to llama-server, including the port
         (--port, default 8080). The model path, host, API key and device are managed by the app.
