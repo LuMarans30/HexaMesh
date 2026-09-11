@@ -116,7 +116,22 @@ fun nodeScreen(
 
     Scaffold(
         modifier = modifier.fillMaxSize(),
-        topBar = { TopAppBar(title = { Text(stringResource(R.string.app_name)) }) },
+        topBar = {
+            TopAppBar(
+                title = {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(
+                            painter = painterResource(R.drawable.ic_hexagon),
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(24.dp),
+                        )
+                        Spacer(Modifier.width(10.dp))
+                        Text(stringResource(R.string.app_name))
+                    }
+                }
+            )
+        },
         floatingActionButton = {
             primaryActionFab(
                 state = state,
@@ -134,6 +149,10 @@ fun nodeScreen(
                     .verticalScroll(rememberScrollState())
                     .padding(24.dp),
         ) {
+            statusHero(state, apiKey)
+
+            Spacer(Modifier.height(24.dp))
+
             modelsHeader(onAdd = { sheetOpen = true })
 
             Spacer(Modifier.height(8.dp))
@@ -165,8 +184,6 @@ fun nodeScreen(
                 onCancelDownload = onCancelDownload,
                 onCancelImport = onCancelImport,
             )
-
-            statusSection(state, apiKey)
 
             Spacer(Modifier.height(16.dp))
 
@@ -393,25 +410,16 @@ private fun diagnostics(exempt: Boolean, onFix: () -> Unit) {
 
 @Composable
 private fun batteryChip() {
-    Surface(color = batteryOkGreen.copy(alpha = 0.16f), shape = RoundedCornerShape(50)) {
+    Surface(color = MaterialTheme.colorScheme.surfaceVariant, shape = RoundedCornerShape(50)) {
         Row(
-            modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = 7.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Box(
-                modifier = Modifier.size(18.dp).background(batteryOkGreen, CircleShape),
-                contentAlignment = Alignment.Center,
-            ) {
-                Text(
-                    text = "✓",
-                    color = Color(0xFF1B1B1B),
-                    style = MaterialTheme.typography.labelSmall,
-                )
-            }
+            Box(Modifier.size(8.dp).background(batteryOkGreen, CircleShape))
             Spacer(Modifier.width(8.dp))
             Text(
                 text = stringResource(R.string.battery_optimization_off),
-                color = batteryOkGreen,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
                 style = MaterialTheme.typography.labelLarge,
             )
         }
@@ -424,7 +432,7 @@ private fun batteryWarningCard(onFix: () -> Unit) {
 
     Surface(
         color = accent.copy(alpha = 0.16f),
-        shape = RoundedCornerShape(16.dp),
+        shape = RoundedCornerShape(20.dp),
         modifier = Modifier.fillMaxWidth().clickable(onClick = onFix),
     ) {
         Row(modifier = Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -661,7 +669,7 @@ private fun grantAccessDialog(name: String, onOpenSettings: () -> Unit, onDismis
         text = {
             Text(
                 "Android only lets apps delete files in shared storage with this permission, " +
-                    "which is what lets HexaMesh move $name instead of copying it."
+                        "which is what lets HexaMesh move $name instead of copying it."
             )
         },
         confirmButton = { TextButton(onClick = onOpenSettings) { Text("Open settings") } },
@@ -670,7 +678,7 @@ private fun grantAccessDialog(name: String, onOpenSettings: () -> Unit, onDismis
 }
 
 @Composable
-private fun statusSection(state: NodeState, apiKey: String) {
+private fun statusHero(state: NodeState, apiKey: String) {
     when (state) {
         is NodeState.Running ->
             servingCard(
@@ -679,17 +687,93 @@ private fun statusSection(state: NodeState, apiKey: String) {
                 apiKey = apiKey,
             )
 
-        is NodeState.Stopped -> statusText("Node stopped.")
-        is NodeState.Starting -> statusText("Starting llama-server...")
-        is NodeState.Stopping -> statusText("Stopping llama-server...")
-        is NodeState.Idle -> statusText("Service running, but no model to load.")
-        is NodeState.Error -> statusText("Error: ${state.message}")
+        is NodeState.Stopped ->
+            statusCard(
+                accent = MaterialTheme.colorScheme.onSurfaceVariant,
+                title = "Node stopped",
+                subtitle = "Select a model, then tap Start Node.",
+                symbol = "○",
+            )
+
+        is NodeState.Idle ->
+            statusCard(
+                accent = MaterialTheme.colorScheme.tertiary,
+                title = "Service running",
+                subtitle = "No model selected to load.",
+                symbol = "○",
+            )
+
+        is NodeState.Starting ->
+            statusCard(
+                accent = MaterialTheme.colorScheme.primary,
+                title = "Starting llama-server",
+                subtitle = "Loading ${File(state.modelPath).name}…",
+                busy = true,
+            )
+
+        is NodeState.Stopping ->
+            statusCard(
+                accent = MaterialTheme.colorScheme.primary,
+                title = "Stopping llama-server",
+                subtitle = "Shutting down…",
+                busy = true,
+            )
+
+        is NodeState.Error ->
+            statusCard(
+                accent = MaterialTheme.colorScheme.error,
+                title = "Node failed",
+                subtitle = state.message,
+                symbol = "!",
+            )
     }
 }
 
 @Composable
-private fun statusText(text: String) {
-    Text(text, style = MaterialTheme.typography.bodyMedium)
+private fun statusCard(
+    accent: Color,
+    title: String,
+    subtitle: String,
+    symbol: String? = null,
+    busy: Boolean = false,
+) {
+    Surface(
+        color = MaterialTheme.colorScheme.surfaceVariant,
+        shape = RoundedCornerShape(20.dp),
+        modifier = Modifier.fillMaxWidth(),
+    ) {
+        Row(modifier = Modifier.padding(20.dp), verticalAlignment = Alignment.CenterVertically) {
+            Box(
+                modifier = Modifier.size(44.dp).background(accent.copy(alpha = 0.18f), CircleShape),
+                contentAlignment = Alignment.Center,
+            ) {
+                if (busy) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(22.dp),
+                        strokeWidth = 2.dp,
+                        color = accent,
+                    )
+                } else {
+                    Text(
+                        text = symbol.orEmpty(),
+                        color = accent,
+                        style = MaterialTheme.typography.titleMedium,
+                    )
+                }
+            }
+
+            Spacer(Modifier.width(16.dp))
+
+            Column {
+                Text(title, style = MaterialTheme.typography.titleMedium)
+                Text(
+                    subtitle,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        }
+    }
 }
 
 @Composable
@@ -698,7 +782,7 @@ private fun servingCard(modelName: String, serverUrl: String, apiKey: String) {
 
     Surface(
         color = accent.copy(alpha = 0.16f),
-        shape = RoundedCornerShape(16.dp),
+        shape = RoundedCornerShape(20.dp),
         modifier = Modifier.fillMaxWidth(),
     ) {
         Column(Modifier.padding(16.dp)) {
