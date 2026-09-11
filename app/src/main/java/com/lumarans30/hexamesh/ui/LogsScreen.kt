@@ -26,6 +26,7 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.lumarans30.hexamesh.R
+import com.lumarans30.hexamesh.logs.MemoryInfo
 import com.lumarans30.hexamesh.logs.NodeMetrics
 import java.util.Locale
 
@@ -62,6 +63,7 @@ private fun metricsPanel(metrics: NodeMetrics) {
         ) {
             metricValue(stringResource(R.string.metric_tok_s), rate(metrics.predictedPerSecond))
             metricValue(stringResource(R.string.metric_temp), degrees(metrics.temperatureCelsius))
+            metricValue(stringResource(R.string.metric_free_mem), memory(metrics.memory))
         }
     }
 }
@@ -86,6 +88,20 @@ private fun rate(value: Double?): String =
 
 private fun degrees(value: Double?): String =
     if (value == null) UNAVAILABLE else String.format(Locale.US, "%.1f\u00b0C", value)
+
+private fun memory(info: MemoryInfo?): String =
+    if (info == null) {
+        UNAVAILABLE
+    } else {
+        String.format(
+            Locale.US,
+            "%.1f / %.1f GiB",
+            info.availableBytes / GIB_BYTES,
+            info.totalBytes / GIB_BYTES,
+        )
+    }
+
+private const val GIB_BYTES = 1024.0 * 1024.0 * 1024.0
 
 private const val UNAVAILABLE = "--"
 

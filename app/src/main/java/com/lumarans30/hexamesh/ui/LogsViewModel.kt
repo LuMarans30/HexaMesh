@@ -6,10 +6,14 @@ import com.lumarans30.hexamesh.logs.LLAMA_SERVER_LOG_NAME
 import com.lumarans30.hexamesh.logs.LineBuffer
 import com.lumarans30.hexamesh.logs.LogTailer
 import com.lumarans30.hexamesh.logs.NodeMetrics
+import com.lumarans30.hexamesh.logs.SlotsClient
 import com.lumarans30.hexamesh.logs.TailEvent
 import com.lumarans30.hexamesh.logs.ThermalZones
 import com.lumarans30.hexamesh.logs.hottestCelsius
-import com.lumarans30.hexamesh.logs.parseTokensPerSecond
+import com.lumarans30.hexamesh.logs.readMemoryInfo
+import com.lumarans30.hexamesh.logs.tokensPerSecond
+import com.lumarans30.hexamesh.platform.ApiKeyManager
+import com.lumarans30.hexamesh.platform.ServerSettings
 import java.io.File
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.currentCoroutineContext
@@ -31,13 +35,15 @@ class LogsViewModel(application: Application) : AndroidViewModel(application) {
     val lines: StateFlow<List<String>> = buffer.lines
 
     private val logFile = File(application.cacheDir, LLAMA_SERVER_LOG_NAME)
+    private val settings = ServerSettings.from(application)
+    private val apiKey = ApiKeyManager.getOrCreateApiKey(application)
 
     private val _metrics = MutableStateFlow(NodeMetrics())
     val metrics: StateFlow<NodeMetrics> = _metrics.asStateFlow()
 
     suspend fun observe() = coroutineScope {
         launch { tail() }
-        launch { pollTemperature() }
+        launch { pollSystem() }
     }
 
     private suspend fun tail() {
@@ -45,28 +51,44 @@ class LogsViewModel(application: Application) : AndroidViewModel(application) {
         withContext(Dispatchers.IO) {
             LogTailer(logFile).events().collect { event ->
                 when (event) {
-                    is TailEvent.Line -> {
-                        buffer.append(event.text)
-                        parseTokensPerSecond(event.text)?.let { rate ->
-                            _metrics.update { it.copy(predictedPerSecond = rate) }
-                        }
-                    }
-
+                    is TailEvent.Line -> buffer.append(event.text)
                     TailEvent.Reset -> buffer.clear()
                 }
             }
         }
     }
 
-    private suspend fun pollTemperature() {
+    private suspend fun pollSystem() {
+        var previousDecoded: Int? = null
+        var previousAt = 0L
+
         while (currentCoroutineContext().isActive) {
-            val zones = withContext(Dispatchers.IO) { ThermalZones.read() }
-            _metrics.update { it.copy(temperatureCelsius = hottestCelsius(zones)) }
-            delay(TEMP_POLL_MS)
+            val memory = withContext(Dispatchers.IO) { readMemoryInfo() }
+            val temperature = withContext(Dispatchers.IO) { hottestCelsius(ThermalZones.read()) }
+            val decoded =
+                withContext(Dispatchers.IO) {
+                    runCatching { SlotsClient(settings.port, apiKey).decodedTokens() }.getOrNull()
+                }
+
+            val now = System.nanoTime() / NANOS_PER_MILLI
+            val rate = tokensPerSecond(decoded, previousDecoded, previousAt, now)
+
+            _metrics.update {
+                it.copy(
+                    predictedPerSecond = rate ?: it.predictedPerSecond,
+                    temperatureCelsius = temperature,
+                    memory = memory,
+                )
+            }
+
+            previousDecoded = decoded
+            previousAt = now
+            delay(POLL_MS)
         }
     }
 
     private companion object {
-        const val TEMP_POLL_MS = 2000L
+        const val POLL_MS = 1000L
+        const val NANOS_PER_MILLI = 1_000_000L
     }
 }

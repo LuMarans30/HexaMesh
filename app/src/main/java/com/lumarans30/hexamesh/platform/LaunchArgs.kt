@@ -8,7 +8,7 @@ package com.lumarans30.hexamesh.platform
 val LOCKED_LAUNCH_FLAGS = setOf("-m", "--model", "--host", "--api-key", "--device")
 
 /** Editable defaults, port included. `-ngl` assumes the GPU backend. */
-const val DEFAULT_LAUNCH_ARGS = "--port 8080 -fa on -t 6 -ub 16 --no-warmup -ngl 99"
+const val DEFAULT_LAUNCH_ARGS = "--port 8080 --slots -fa on -t 6 -ub 16 --no-warmup -ngl 99"
 
 fun parseLaunchArgs(text: String): List<String> =
     text.split(' ', '\t', '\n', '\r').filter { it.isNotBlank() }
