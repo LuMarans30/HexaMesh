@@ -22,16 +22,6 @@ HexaMesh runs llama.cpp's `llama-server` inside an Android foreground service
 and exposes an OpenAI-compatible HTTP API on the LAN. A Rust supervisor spawns
 and watches the server over JNI.
 
-| Piece | Role |
-| --- | --- |
-| `MainActivity.kt` | thin Compose control panel (platform plumbing only) |
-| `ui/NodeViewModel.kt`, `ui/TransferViewModel.kt` | UI state |
-| `MeshService.kt` | foreground service; publishes node state via `LocalBinder` |
-| `node/NodeController.kt` | owns the `StateFlow<NodeState>`; supervises the engine |
-| `bridge/RustEngine.kt` | JNI to `libhexa_mesh_core.so` |
-| `hexa_mesh_core/` | Rust supervisor |
-| `bridge/ServerConfig.kt` | config passed to `llama-server` |
-
 - Release `0.7.0` (`versionCode 6`); server listens on **8080** (hardcoded — Phase 2).
 - Backends: Adreno GPU (OpenCL) today; the Hexagon NPU path is **experimental
   and produces corrupted output**.
@@ -89,10 +79,6 @@ reason.
 
 Phase notes (the load-bearing bits):
 
-- **1 —** add `enum class HexaTab { Manage, Mesh, Logs, Settings }`; switch
-  content on a saveable tab wrapped in a `SaveableStateHolder`; `BackHandler`
-  returns to Manage from any tab; new drawables `ic_mesh`, `ic_terminal`,
-  `ic_settings` (reuse `ic_hexagon`). No Navigation Compose.
 - **2 —** persist settings (DataStore or SharedPreferences); thread the port
   through `ServerConfig.port` and delete the hardcoded `8080`; discover via
   `NsdManager` (`CHANGE_WIFI_MULTICAST_STATE` is already declared); keep a
