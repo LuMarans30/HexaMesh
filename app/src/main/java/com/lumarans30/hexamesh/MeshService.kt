@@ -3,15 +3,18 @@ package com.lumarans30.hexamesh
 import android.app.Service
 import android.content.Intent
 import android.content.pm.ServiceInfo
+import android.os.Binder
 import android.os.IBinder
 import android.util.Log
 import com.lumarans30.hexamesh.bridge.RustEngine
 import com.lumarans30.hexamesh.node.ModelRepository
 import com.lumarans30.hexamesh.node.NodeController
 import com.lumarans30.hexamesh.node.NodeEnvironment
+import com.lumarans30.hexamesh.node.NodeState
 import com.lumarans30.hexamesh.platform.ApiKeyManager
 import com.lumarans30.hexamesh.platform.LockManager
 import com.lumarans30.hexamesh.platform.Notifications
+import kotlinx.coroutines.flow.StateFlow
 
 /** Persistent foreground service that hosts the HexaMesh node. */
 class MeshService : Service() {
@@ -22,11 +25,18 @@ class MeshService : Service() {
         const val ACTION_STOP = "com.lumarans30.hexamesh.action.STOP"
     }
 
+    inner class LocalBinder : Binder() {
+        val nodeState: StateFlow<NodeState>
+            get() = node.state
+    }
+
+    private val binder = LocalBinder()
+
     private lateinit var notifications: Notifications
     private lateinit var models: ModelRepository
     private lateinit var node: NodeController
 
-    override fun onBind(intent: Intent?): IBinder? = null
+    override fun onBind(intent: Intent?): IBinder = binder
 
     override fun onCreate() {
         super.onCreate()
@@ -49,6 +59,7 @@ class MeshService : Service() {
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         if (intent?.action == ACTION_STOP) {
             Log.i(TAG, "Stop requested.")
+            node.stop()
             stopSelf()
             return START_NOT_STICKY
         }

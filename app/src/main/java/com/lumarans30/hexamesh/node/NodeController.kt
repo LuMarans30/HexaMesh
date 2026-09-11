@@ -11,6 +11,9 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
@@ -24,6 +27,10 @@ class NodeController(
     private val scope: CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.IO),
 ) {
     private val transition = Mutex()
+
+    private val _state = MutableStateFlow<NodeState>(NodeState.Stopped)
+
+    val state: StateFlow<NodeState> = _state.asStateFlow()
 
     @Volatile
     private var running = false
@@ -43,7 +50,7 @@ class NodeController(
     internal suspend fun applyModel(modelPath: String?) =
         transition.withLock {
             if (modelPath == null) {
-                NodeState.post(NodeState.Idle)
+                post(NodeState.Idle)
                 return@withLock
             }
             if (running) return@withLock
@@ -51,7 +58,7 @@ class NodeController(
             running = true
             activeModelPath = modelPath
             env.locks.acquire()
-            NodeState.post(NodeState.Starting(modelPath))
+            post(NodeState.Starting(modelPath))
 
             try {
                 engine.start(
@@ -66,7 +73,7 @@ class NodeController(
                 )
             } catch (t: Throwable) {
                 teardown()
-                NodeState.post(NodeState.Error(t.message ?: FAILED_TO_START))
+                post(NodeState.Error(t.message ?: FAILED_TO_START))
                 return@withLock
             }
 
@@ -77,9 +84,9 @@ class NodeController(
         transition.withLock {
             if (!running) return@withLock
 
-            activeModelPath?.let { NodeState.post(NodeState.Stopping(it)) }
+            activeModelPath?.let { post(NodeState.Stopping(it)) }
             teardown()
-            NodeState.post(NodeState.Stopped)
+            post(NodeState.Stopped)
         }
 
     private suspend fun fail(message: String) =
@@ -87,7 +94,7 @@ class NodeController(
             if (!running) return@withLock
 
             teardown(stopWatcher = false)
-            NodeState.post(NodeState.Error(message))
+            post(NodeState.Error(message))
         }
 
     private fun watchStatus() {
@@ -117,7 +124,7 @@ class NodeController(
                                 EngineStatus.RUNNING -> {
                                     val model = activeModelPath
                                     if (model != null) {
-                                        NodeState.post(
+                                        post(
                                             NodeState.Running(model, lanServerUrl())
                                         )
                                     }
@@ -147,6 +154,10 @@ class NodeController(
         statusJob = null
         runCatching { engine.stop() }
         env.locks.release()
+    }
+
+    private fun post(state: NodeState) {
+        _state.value = state
     }
 
     private fun lanServerUrl(): String {

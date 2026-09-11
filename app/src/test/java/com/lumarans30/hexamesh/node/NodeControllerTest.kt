@@ -22,23 +22,26 @@ class NodeControllerTest {
 
     @Before
     fun setUp() {
-        NodeState.post(NodeState.Stopped)
         locks = FakeLocks()
         engine = FakeEngine()
     }
 
-    private fun TestScope.newController(): NodeController =
-        NodeController(
-            NodeEnvironment(
-                nativeLibDir = "/lib",
-                cacheDir = "/cache",
-                apiKey = "key",
-                serverDiedMessage = "server died",
-                locks = locks,
-            ),
-            engine,
-            backgroundScope,
-        )
+    private fun TestScope.newController(): NodeController {
+        val controller =
+            NodeController(
+                NodeEnvironment(
+                    nativeLibDir = "/lib",
+                    cacheDir = "/cache",
+                    apiKey = "key",
+                    serverDiedMessage = "server died",
+                    locks = locks,
+                ),
+                engine,
+                backgroundScope,
+            )
+        engine.stateProvider = { controller.state.value }
+        return controller
+    }
 
     @Test
     fun `no model posts idle without touching locks or engine`() = runTest {
@@ -46,7 +49,7 @@ class NodeControllerTest {
 
         controller.applyModel(null)
 
-        assertEquals(NodeState.Idle, NodeState.current.value)
+        assertEquals(NodeState.Idle, controller.state.value)
         assertEquals(0, locks.acquires)
         assertEquals(0, engine.started.size)
     }
@@ -58,11 +61,11 @@ class NodeControllerTest {
 
         controller.applyModel(MODEL)
 
-        assertEquals(NodeState.Starting(MODEL), NodeState.current.value)
+        assertEquals(NodeState.Starting(MODEL), controller.state.value)
 
         runCurrent()
 
-        val running = NodeState.current.value
+        val running = controller.state.value
         assertTrue(running is NodeState.Running)
         assertEquals(MODEL, (running as NodeState.Running).modelPath)
         assertEquals(1, locks.acquires)
@@ -87,7 +90,7 @@ class NodeControllerTest {
         controller.unload()
 
         assertEquals(NodeState.Stopping(MODEL), engine.stateWhenStopped)
-        assertEquals(NodeState.Stopped, NodeState.current.value)
+        assertEquals(NodeState.Stopped, controller.state.value)
         assertEquals(1, locks.releases)
         assertEquals(1, engine.stopCount)
     }
@@ -98,7 +101,7 @@ class NodeControllerTest {
 
         controller.unload()
 
-        assertEquals(NodeState.Stopped, NodeState.current.value)
+        assertEquals(NodeState.Stopped, controller.state.value)
         assertEquals(0, locks.releases)
         assertEquals(0, engine.stopCount)
     }
@@ -152,7 +155,7 @@ class NodeControllerTest {
 
         controller.applyModel(MODEL)
 
-        val state = NodeState.current.value
+        val state = controller.state.value
         assertTrue(state is NodeState.Error)
         assertEquals("boom", (state as NodeState.Error).message)
         assertEquals(1, locks.acquires)
@@ -168,7 +171,7 @@ class NodeControllerTest {
         controller.applyModel(MODEL)
         runCurrent()
 
-        val state = NodeState.current.value
+        val state = controller.state.value
         assertTrue(state is NodeState.Error)
         assertEquals("died", (state as NodeState.Error).message)
         assertEquals(1, locks.releases)
@@ -194,6 +197,7 @@ class NodeControllerTest {
         var status: EngineStatus? = EngineStatus(EngineStatus.STARTING, null)
         var startError: Throwable? = null
         var stateWhenStopped: NodeState? = null
+        var stateProvider: (() -> NodeState)? = null
 
         override fun start(config: ServerConfig) {
             startError?.let { throw it }
@@ -202,7 +206,7 @@ class NodeControllerTest {
 
         override fun stop() {
             stopCount++
-            stateWhenStopped = NodeState.current.value
+            stateWhenStopped = stateProvider?.invoke()
         }
 
         override fun pollStatus(): EngineStatus? = status

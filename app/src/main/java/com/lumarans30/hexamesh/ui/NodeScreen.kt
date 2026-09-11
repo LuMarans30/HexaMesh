@@ -75,34 +75,12 @@ import kotlinx.coroutines.launch
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun nodeScreen(
-    state: NodeState,
-    models: List<Model>,
-    selectedPath: String?,
-    batteryExempt: Boolean,
-    apiKey: String,
-    adbPushHint: String,
-    download: DownloadStatus?,
-    downloadError: String?,
-    importPrompt: ImportPrompt?,
-    importProgress: DownloadStatus?,
-    importError: String?,
-    onSelect: (Model) -> Unit,
-    onDelete: (Model) -> Unit,
-    onDownload: (DownloadRequest) -> Unit,
-    onCancelDownload: () -> Unit,
-    onImport: () -> Unit,
-    onCancelImport: () -> Unit,
-    onImportCopy: () -> Unit,
-    onImportMove: () -> Unit,
-    onImportCancel: () -> Unit,
-    onGrantAccess: () -> Unit,
-    onGrantDismiss: () -> Unit,
-    onStart: () -> Unit,
-    onStop: () -> Unit,
-    onFixBattery: () -> Unit,
+    state: ManagerUiState,
+    actions: ManagerActions,
     modifier: Modifier = Modifier,
 ) {
-    val activeModelPath = (state as? NodeState.Running)?.modelPath
+    val nodeState = state.node
+    val activeModelPath = (nodeState as? NodeState.Running)?.modelPath
     var pendingDelete by remember { mutableStateOf<Model?>(null) }
     var sheetOpen by rememberSaveable { mutableStateOf(false) }
     val sheetState = rememberModalBottomSheetState()
@@ -134,10 +112,10 @@ fun nodeScreen(
         },
         floatingActionButton = {
             primaryActionFab(
-                state = state,
-                hasSelection = selectedPath != null,
-                onStart = onStart,
-                onStop = onStop,
+                state = nodeState,
+                hasSelection = state.selectedPath != null,
+                onStart = actions.onStart,
+                onStop = actions.onStop,
             )
         },
         floatingActionButtonPosition = FabPosition.End,
@@ -149,7 +127,7 @@ fun nodeScreen(
                     .verticalScroll(rememberScrollState())
                     .padding(24.dp),
         ) {
-            statusHero(state, apiKey)
+            statusHero(nodeState, state.apiKey)
 
             Spacer(Modifier.height(24.dp))
 
@@ -157,19 +135,19 @@ fun nodeScreen(
 
             Spacer(Modifier.height(8.dp))
 
-            if (models.isEmpty()) {
+            if (state.models.isEmpty()) {
                 Text(
                     stringResource(R.string.no_model_found),
                     style = MaterialTheme.typography.bodyMedium,
                 )
-                Text("  $adbPushHint", style = MaterialTheme.typography.bodySmall)
+                Text("  ${state.adbPushHint}", style = MaterialTheme.typography.bodySmall)
             } else {
                 modelList(
-                    models = models,
-                    selectedPath = selectedPath,
-                    enabled = selectionEnabled(state),
-                    canDelete = { canDelete(state, it, activeModelPath) },
-                    onSelect = onSelect,
+                    models = state.models,
+                    selectedPath = state.selectedPath,
+                    enabled = selectionEnabled(nodeState),
+                    canDelete = { canDelete(nodeState, it, activeModelPath) },
+                    onSelect = actions.onSelect,
                     onDelete = { pendingDelete = it },
                 )
             }
@@ -177,17 +155,17 @@ fun nodeScreen(
             Spacer(Modifier.height(16.dp))
 
             transfersSection(
-                download = download,
-                downloadError = downloadError,
-                importProgress = importProgress,
-                importError = importError,
-                onCancelDownload = onCancelDownload,
-                onCancelImport = onCancelImport,
+                download = state.download,
+                downloadError = state.downloadError,
+                importProgress = state.importProgress,
+                importError = state.importError,
+                onCancelDownload = actions.onCancelDownload,
+                onCancelImport = actions.onCancelImport,
             )
 
             Spacer(Modifier.height(16.dp))
 
-            diagnostics(exempt = batteryExempt, onFix = onFixBattery)
+            diagnostics(exempt = state.batteryExempt, onFix = actions.onFixBattery)
 
             Spacer(Modifier.height(96.dp))
         }
@@ -196,15 +174,15 @@ fun nodeScreen(
     if (sheetOpen) {
         ModalBottomSheet(onDismissRequest = { sheetOpen = false }, sheetState = sheetState) {
             ingestionSheet(
-                download = download,
-                importEnabled = importPrompt == null && importProgress == null,
+                download = state.download,
+                importEnabled = state.importPrompt == null && state.importProgress == null,
                 onDownload = { request ->
-                    onDownload(request)
+                    actions.onDownload(request)
                     closeSheet()
                 },
                 onImport = {
                     closeSheet()
-                    onImport()
+                    actions.onImport()
                 },
             )
         }
@@ -214,28 +192,28 @@ fun nodeScreen(
         deleteDialog(
             model = model,
             onConfirm = {
-                onDelete(model)
+                actions.onDelete(model)
                 pendingDelete = null
             },
             onDismiss = { pendingDelete = null },
         )
     }
 
-    importPrompt?.let { prompt ->
+    state.importPrompt?.let { prompt ->
         when (prompt) {
             is ImportPrompt.Choose ->
                 importChoiceDialog(
                     prompt = prompt,
-                    onCopy = onImportCopy,
-                    onMove = onImportMove,
-                    onDismiss = onImportCancel,
+                    onCopy = actions.onImportCopy,
+                    onMove = actions.onImportMove,
+                    onDismiss = actions.onImportCancel,
                 )
 
             is ImportPrompt.Grant ->
                 grantAccessDialog(
                     name = prompt.name,
-                    onOpenSettings = onGrantAccess,
-                    onDismiss = onGrantDismiss,
+                    onOpenSettings = actions.onGrantAccess,
+                    onDismiss = actions.onGrantDismiss,
                 )
         }
     }
@@ -623,15 +601,6 @@ private fun deleteDialog(model: Model, onConfirm: () -> Unit, onDismiss: () -> U
     )
 }
 
-/** Prompt shown while importing a picked file. */
-sealed interface ImportPrompt {
-    val name: String
-
-    data class Choose(override val name: String, val sizeBytes: Long) : ImportPrompt
-
-    data class Grant(override val name: String) : ImportPrompt
-}
-
 @Composable
 private fun importChoiceDialog(
     prompt: ImportPrompt.Choose,
@@ -874,17 +843,4 @@ internal fun formatSize(bytes: Long): String {
     }
 
     return String.format(Locale.US, "%.1f %s", value, units[unit])
-}
-
-data class DownloadStatus(val fileName: String, val downloaded: Long, val total: Long) {
-    val fraction: Float
-        get() = if (total > 0) (downloaded.toFloat() / total).coerceIn(0f, 1f) else 0f
-
-    val label: String
-        get() =
-            if (total > 0) {
-                "${(fraction * 100).toInt()}% · ${formatSize(downloaded)} / ${formatSize(total)}"
-            } else {
-                formatSize(downloaded)
-            }
 }
