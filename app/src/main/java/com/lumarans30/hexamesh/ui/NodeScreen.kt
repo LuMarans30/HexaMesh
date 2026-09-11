@@ -276,28 +276,8 @@ private fun errorText(message: String) {
 
 @Composable
 private fun diagnostics(exempt: Boolean, onFix: () -> Unit) {
-    if (exempt) {
-        batteryChip()
-    } else {
+    if (!exempt) {
         batteryWarningCard(onFix = onFix)
-    }
-}
-
-@Composable
-private fun batteryChip() {
-    Surface(color = MaterialTheme.colorScheme.surfaceVariant, shape = RoundedCornerShape(50)) {
-        Row(
-            modifier = Modifier.padding(horizontal = 12.dp, vertical = 7.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Box(Modifier.size(8.dp).background(batteryOkGreen, CircleShape))
-            Spacer(Modifier.width(8.dp))
-            Text(
-                text = stringResource(R.string.battery_optimization_off),
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                style = MaterialTheme.typography.labelLarge,
-            )
-        }
     }
 }
 
@@ -339,8 +319,6 @@ private fun batteryWarningCard(onFix: () -> Unit) {
         }
     }
 }
-
-private val batteryOkGreen = Color(0xFFB6F04A)
 
 @Composable
 private fun ingestionSheet(
