@@ -15,7 +15,12 @@ import com.lumarans30.hexamesh.platform.ApiKeyManager
 import com.lumarans30.hexamesh.platform.LockManager
 import com.lumarans30.hexamesh.platform.Notifications
 import com.lumarans30.hexamesh.platform.ServerSettings
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.launch
 
 /** Persistent foreground service that hosts the HexaMesh node. */
 class MeshService : Service() {
@@ -33,9 +38,13 @@ class MeshService : Service() {
 
     private val binder = LocalBinder()
 
+    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
+
     private lateinit var notifications: Notifications
     private lateinit var models: ModelRepository
     private lateinit var node: NodeController
+
+    private var foregroundActive = false
 
     override fun onBind(intent: Intent?): IBinder = binder
 
@@ -56,28 +65,34 @@ class MeshService : Service() {
         )
 
         notifications.createChannel()
+
+        scope.launch {
+            node.state.collect { state ->
+                val settled =
+                    state is NodeState.Stopped ||
+                            state is NodeState.Idle ||
+                            state is NodeState.Error
+                if (foregroundActive && settled) hideForeground(stopSelf = true)
+            }
+        }
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         if (intent?.action == ACTION_STOP) {
             Log.i(TAG, "Stop requested.")
             node.stop()
-            stopSelf()
+            hideForeground(stopSelf = true)
             return START_NOT_STICKY
         }
 
         val requestedModelPath = intent?.getStringExtra(EXTRA_MODEL_PATH)
         val modelPath = requestedModelPath ?: models.selected()?.path
 
-        startForeground(
-            Notifications.NOTIFICATION_ID,
-            notifications.build(modelPath),
-            ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE
-        )
+        showForeground(modelPath)
 
         if (modelPath == null) {
             Log.w(TAG, "No .gguf model found. Skipping node start.")
-            stopSelf()
+            hideForeground(stopSelf = true)
             return START_NOT_STICKY
         }
 
@@ -88,8 +103,27 @@ class MeshService : Service() {
 
     override fun onDestroy() {
         Log.i(TAG, "Service destroyed.")
+        scope.cancel()
         node.stop()
         stopForeground(STOP_FOREGROUND_REMOVE)
+        foregroundActive = false
         super.onDestroy()
+    }
+
+    private fun showForeground(modelPath: String?) {
+        startForeground(
+            Notifications.NOTIFICATION_ID,
+            notifications.build(modelPath),
+            ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE,
+        )
+        foregroundActive = true
+    }
+
+    private fun hideForeground(stopSelf: Boolean) {
+        if (foregroundActive) {
+            foregroundActive = false
+            stopForeground(STOP_FOREGROUND_REMOVE)
+        }
+        if (stopSelf) stopSelf()
     }
 }
