@@ -12,12 +12,12 @@ HexaMesh runs [llama.cpp](https://github.com/ggml-org/llama.cpp)'s `llama-server
 
 You can use the built-in llama.cpp web UI, Open WebUI, or plain `curl`.
 
-The long-term goal is Snapdragon Hexagon NPU inference and, eventually, meshing phones over llama.cpp RPC. That part is not built yet.
+The long-term goal is Snapdragon Hexagon NPU inference and distributed inference across phones over llama.cpp RPC. Peer discovery over mDNS and coordinator-to-peer offload are in place; the worker role and layer planning are still being built.
 
 > [!IMPORTANT]
 > HexaMesh currently launches the Adreno GPU (OpenCL) backend. The Hexagon NPU backend is experimental and currently produces corrupted output on tested models.
 >
-> The server listens on port `8080`.
+> The server listens on port `8080` by default; change it in Settings.
 
 ## Architecture
 

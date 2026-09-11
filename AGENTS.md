@@ -22,12 +22,19 @@ HexaMesh runs llama.cpp's `llama-server` inside an Android foreground service
 and exposes an OpenAI-compatible HTTP API on the LAN. A Rust supervisor spawns
 and watches the server over JNI.
 
-- Release `0.7.0` (`versionCode 6`); server listens on **8080** (hardcoded — Phase 2).
+- Release `0.8.0` (`versionCode 7`); the server defaults to **8080** and the port
+  is editable through the launch args.
 - Backends: Adreno GPU (OpenCL) today; the Hexagon NPU path is **experimental
   and produces corrupted output**.
-- **Not built yet:** llama.cpp RPC mesh / peer discovery. No NSD/mDNS code
-  exists; the only trace is the multicast lock in `platform/LockManager.kt`.
-  The Mesh tab and per-peer logs are blocked on this backend.
+- **RPC mesh is partly built:** `scripts/enable_rpc.py` forces `GGML_RPC=ON` in
+  the Snapdragon build (run by `build_llama.sh` and CI), so `pkg-adb` ships
+  `ggml-rpc-server` (bundled as `libggmlrpcserver.so`) and a `llama-server` that
+  accepts `--rpc`. The Rust supervisor runs either role, the pure mesh domain
+  lives in `mesh/`, and the Mesh tab advertises/browses `_hexamesh._tcp` (NSD),
+  pings peers for latency, and hands the reachable ones to a starting node as
+  `--rpc` (verified offloading to a PC `ggml-rpc-server`). **Not built yet:** the
+  worker role is not selectable from the UI, `planLayers`/`--tensor-split` is
+  unused, and per-peer logs are missing.
 
 ## Build & verify
 
@@ -42,6 +49,11 @@ and watches the server over JNI.
 - `llama.cpp/` is an ignored, unpinned checkout at upstream `master` (excluded
   from editor search); its `AGENTS.md` is unrelated to this project. `build_llama.sh`
   and CI always pull the tip, so the build is not reproducible across dates.
+- **RPC build:** the Snapdragon preset ships `GGML_RPC=OFF`; `scripts/enable_rpc.py`
+  patches the generated `llama.cpp/CMakeUserPresets.json` to turn it on.
+  `build_llama.sh` runs it after pulling and CI runs it before `build.py`. The
+  app bundles `bin/ggml-rpc-server` as `libggmlrpcserver.so`; `lib/*.so`
+  (including `libggml-rpc.so`) is copied automatically.
 - CI (`.github/workflows/build.yml`) builds the APK, uploads artifacts, and
   releases on `v*` tags.
 - **Definition of done:** `testDebugUnitTest` green and `assembleDebug`
@@ -77,7 +89,7 @@ reason.
 | 2 | Settings: persisted port + mDNS/NSD + fallback IPs | port landed; NSD + fallback IPs moved to phase 4 |
 | 2.5 | Custom launch args: editable defaults, locked required flags | ✅ landed |
 | 3 | Logs tab (local diagnostics only) | ✅ landed |
-| 4 | Mesh tab + per-peer logs | blocked on RPC backend |
+| 4 | Mesh tab + per-peer logs | 🚧 coordinator offloads to peers; worker role + logs pending |
 
 Phase notes (the load-bearing bits):
 
@@ -100,9 +112,20 @@ Phase notes (the load-bearing bits):
   `/proc/meminfo` (the server's own RSS excludes GPU-offloaded weights, so it is
   not a useful number). Terminal view is a `LazyColumn` over a ~2000-line capped
   buffer. Per-peer logs are out of scope here.
-- **4 —** blocked until llama.cpp RPC meshing exists. Define the data models
-  (`PeerNode`, `LayerAssignment`, `PeerStats`) before any UI; render with
-  Compose `Canvas`; prefer one merged, timestamped, peer-filterable log stream.
+- **4 —** the RPC backend is built and bundled: `scripts/enable_rpc.py` forces
+  `GGML_RPC=ON`, `ggml-rpc-server` ships as `libggmlrpcserver.so`, and the
+  supervisor runs either role (`ServerRole.SERVER`/`RPC`, with a TCP liveness
+  probe and a separate `rpc-server.log`). Discovery and meshing hand-off landed:
+  `NsdDiscovery` browses `_hexamesh._tcp`, `NsdAdvertiser` publishes this device
+  (Discoverable toggle), peers publish `free_mem`/`total_mem` TXT, and
+  `MeshViewModel` pings each peer over TCP (`tcpLatencyMs`) so `--rpc` selection
+  uses `isReachable` + `rankPeers`. `usePeers` gates injection, and a start
+  carries the endpoints through `MeshService` → `ServerConfig.rpcServers` → Rust
+  `--rpc`. Verified over the LAN against a PC `ggml-rpc-server`: the peer's GPU
+  took the weights and served generation. **Next:** a worker-role toggle so this
+  phone can run `ggml-rpc-server`, `--tensor-split` from `planLayers`, then the
+  Canvas view and per-peer logs. Prefer one merged, timestamped, peer-filterable
+  log stream.
 
 ## Gotchas
 
@@ -110,15 +133,30 @@ Phase notes (the load-bearing bits):
   `SaveableStateHolder` to keep per-tab scroll position.
 - **Polling lifecycle:** tie all polling to the composed tab (`LaunchedEffect`);
   never poll in the background.
+- **`--device` excludes RPC peers:** llama.cpp uses only the devices named by
+  `--device`, and RPC peers register separately. The supervisor omits `--device`
+  whenever `rpcServers` is set, so the local GPU and the peers are all eligible.
 - **OEM battery screens:** MIUI et al. commit the whitelist change *after* the
   activity regains focus, so a single `onResume` read is racy. Keep the retry
   logic in `MainActivity.scheduleBatteryRefresh()`.
+- **NSD empty TXT:** a service record with no TXT attributes trips a framework
+  bug (`NsdService: Key cannot be empty`). The advertiser always publishes
+  `free_mem`/`total_mem`, so the record is never empty.
 - **Icons:** self-contained drawables only.
 
 ## Known debt
 
-- Phase 2 is incomplete: no `NsdManager` discovery and no persisted fallback-IP
-  list yet.
+- The worker role is still unreachable: `ServerRole.RPC` exists and the bundled
+  `ggml-rpc-server` runs, but nothing in the UI starts it.
+- `planLayers` has no caller, so no `--tensor-split`; llama.cpp splits the model
+  across the local device and the `--rpc` peers on its own.
+- The latency probe opens a TCP connection to the peer's RPC port, which is a
+  single-client server; while llama.cpp holds the connection a probe only lands
+  in the accept backlog. It has not disturbed a clean session, but a dedicated
+  health port would be sturdier.
+- Peers only populate while the Mesh tab has been open (discovery and pings live
+  there), so starting the node from Manage right after launch meshes with
+  nothing.
 - `bridge/Engine.kt` only exposes `start/stop/pollStatus` — no logs/metrics channel.
 
 ## Decisions (do not re-litigate)
@@ -134,12 +172,18 @@ Phase notes (the load-bearing bits):
    `pollLogs()` ring buffer was rejected.
 5. **Mesh model:** the prompt-receiving node is the Coordinator; it queries
    mDNS peers and ranks them by available VRAM/RAM and LAN latency (mDNS ping).
+   Discovery uses `_hexamesh._tcp`; peers publish `free_mem`/`total_mem` TXT
+   attributes (a `/proc/meminfo` snapshot), and a node filters its own
+   advertisement by the registered instance name. Manual fallback peers never
+   expire; discovered ones lapse after `PEER_TTL_MS`.
 6. **Launch args:** one text field of editable flags, the single source of truth,
    port included (`--port`, default 8080). The app always injects `-m`, `--host`,
    `--api-key`, `--device` and strips those (plus their values) if the user types
    them, so the app-owned values always win. Rust builds only those required args;
    everything else — port included — arrives via `ServerConfig.extraArgs`
    (newline-joined). The app parses `--port` back out (`parseLaunchPort`) to drive
-   the health probe and the LAN URL.
+   the health probe and the LAN URL. `--rpc` is app-owned too: the app strips a
+   user-typed one and injects the reachable mesh peers (`ServerConfig.rpcServers`)
+   only when the node starts.
 
 Open questions: none. Add new ones below instead of reopening the above.
