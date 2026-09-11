@@ -68,6 +68,15 @@ val copyLlamaServer = tasks.register<Copy>("copyLlamaServer") {
     into(arm64StagingDir)
 }
 
+// The RPC backend lets a phone expose its devices to a coordinator over
+// llama.cpp's mesh. It has no .so suffix upstream, but every native executable
+// must live in jniLibs to be packaged and extracted with the exec bit.
+val copyRpcServer = tasks.register<Copy>("copyRpcServer") {
+    from(llamaCppPkg.file("bin/ggml-rpc-server"))
+    rename { "libggmlrpcserver.so" }
+    into(arm64StagingDir)
+}
+
 val copyLlamaLibs = tasks.register<Copy>("copyLlamaLibs") {
     from(llamaCppPkg.dir("lib")) {
         include("*.so")
@@ -118,7 +127,7 @@ val buildRustCore = if (rustCoreDir.asFile.exists() && !skipRust) {
 } else null
 
 tasks.named("preBuild") {
-    dependsOn(copyLlamaServer, copyLlamaLibs)
+    dependsOn(copyLlamaServer, copyRpcServer, copyLlamaLibs)
     if (buildRustCore != null) {
         dependsOn(buildRustCore)
     }

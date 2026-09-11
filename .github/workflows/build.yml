@@ -59,6 +59,9 @@ jobs:
                     -o /tmp/llama-ui-dist.tar.gz
                   tar -xzf /tmp/llama-ui-dist.tar.gz -C llama.cpp/tools/ui/dist
 
+            - name: Enable the RPC backend
+              run: python3 scripts/enable_rpc.py llama.cpp
+
             - name: Build llama.cpp for Snapdragon (Docker)
               run: |
                   cd llama.cpp
