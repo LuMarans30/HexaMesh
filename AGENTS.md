@@ -74,6 +74,7 @@ reason.
 | 0 | State refactor: ViewModels, `nodeScreen(state, actions)`, no process-global node state, bound-service re-sync | ✅ landed |
 | 1 | Tab shell (Manage + placeholders) | ✅ landed |
 | 2 | Settings: persisted port + mDNS/NSD + fallback IPs | port landed; NSD + fallback IPs moved to phase 4 |
+| 2.5 | Custom launch args: editable defaults, locked required flags | ✅ landed |
 | 3 | Logs tab (local diagnostics only) | in progress |
 | 4 | Mesh tab + per-peer logs | blocked on RPC backend |
 
@@ -123,11 +124,18 @@ Phase notes (the load-bearing bits):
 2. **Node state:** `NodeController` owns the `StateFlow`; `MeshService.onBind()`
    publishes it through a `LocalBinder`, and the UI binds via `NodeViewModel`.
    Never reintroduce a process-global singleton.
-3. **Port changes:** saved immediately; the node reads the port on each start, so
-   a running server is never disturbed.
+3. **Port changes:** part of the launch args; saved immediately and applied on
+   the next start, so a running server is never disturbed.
 4. **Terminal logs:** tail the supervisor's `llama-server.log`. A JNI
    `pollLogs()` ring buffer was rejected.
 5. **Mesh model:** the prompt-receiving node is the Coordinator; it queries
    mDNS peers and ranks them by available VRAM/RAM and LAN latency (mDNS ping).
+6. **Launch args:** one text field of editable flags, the single source of truth,
+   port included (`--port`, default 8080). The app always injects `-m`, `--host`,
+   `--api-key`, `--device` and strips those (plus their values) if the user types
+   them, so the app-owned values always win. Rust builds only those required args;
+   everything else — port included — arrives via `ServerConfig.extraArgs`
+   (newline-joined). The app parses `--port` back out (`parseLaunchPort`) to drive
+   the health probe and the LAN URL.
 
 Open questions: none. Add new ones below instead of reopening the above.
