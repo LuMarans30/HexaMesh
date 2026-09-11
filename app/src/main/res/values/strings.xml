@@ -46,8 +46,7 @@
 
     <string name="mesh_placeholder_title">Mesh</string>
     <string name="mesh_placeholder_body">RPC meshing and peer discovery are not built yet.</string>
-    <string name="logs_placeholder_title">Logs</string>
-    <string name="logs_placeholder_body">Local diagnostics are coming in a later update.</string>
+    <string name="logs_empty">No log output yet. Start the node to see llama-server output.</string>
     <string name="server_port">Server port</string>
     <string name="server_port_hint">The llama-server listens on this port. A change takes effect
         the next time the node starts.</string>

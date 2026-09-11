@@ -49,6 +49,7 @@ fun hexaMeshApp(
     nodeViewModel: NodeViewModel,
     transferViewModel: TransferViewModel,
     settingsViewModel: SettingsViewModel,
+    logsViewModel: LogsViewModel,
     batteryExempt: Boolean,
     onPickModel: () -> Unit,
     onOpenAllFilesSettings: () -> Unit,
@@ -58,6 +59,7 @@ fun hexaMeshApp(
     val nodeState by nodeViewModel.state.collectAsStateWithLifecycle()
     val transfer by transferViewModel.uiState.collectAsStateWithLifecycle()
     val port by settingsViewModel.port.collectAsStateWithLifecycle()
+    val logLines by logsViewModel.lines.collectAsStateWithLifecycle()
 
     val state =
         ManagerUiState(
@@ -107,6 +109,8 @@ fun hexaMeshApp(
         state = state,
         actions = actions,
         port = port,
+        logLines = logLines,
+        tailLogs = logsViewModel::tail,
         onPortChange = settingsViewModel::setPort,
         modifier = modifier,
     )
@@ -122,6 +126,8 @@ private fun hexaMeshShell(
     state: ManagerUiState,
     actions: ManagerActions,
     port: Int,
+    logLines: List<String>,
+    tailLogs: suspend () -> Unit,
     onPortChange: (Int) -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -172,9 +178,9 @@ private fun hexaMeshShell(
                     )
 
                 HexaTab.Logs ->
-                    placeholderTab(
-                        title = stringResource(R.string.logs_placeholder_title),
-                        body = stringResource(R.string.logs_placeholder_body),
+                    logsScreen(
+                        lines = logLines,
+                        tail = tailLogs,
                         modifier = Modifier.padding(innerPadding),
                     )
 
