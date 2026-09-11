@@ -9,6 +9,12 @@ here is stale, fix it; do not leave dead plans behind.
   changes for the human to review. No `git add` / `commit` / `amend` / `push`
   unless explicitly asked.
 - **Small and reviewable.** Prefer focused changes over sweeping rewrites.
+- **You may install and screenshot.** Put the debug build on a connected device
+  with `./gradlew :app:installDebug -PskipRustBuild` and capture the UI while
+  debugging with `adb exec-out screencap -p > /tmp/hexamesh.png`.
+- **Never uninstall or clear app data.** `adb uninstall com.lumarans30.hexamesh`
+  and `adb shell pm clear com.lumarans30.hexamesh` wipe internal storage and
+  destroy the user's imported models. Reinstall in place instead.
 
 ## Project overview
 
@@ -26,7 +32,7 @@ and watches the server over JNI.
 | `hexa_mesh_core/` | Rust supervisor |
 | `bridge/ServerConfig.kt` | config passed to `llama-server` |
 
-- Release `0.6.0` (`versionCode 5`); server listens on **8080** (hardcoded — Phase 2).
+- Release `0.7.0` (`versionCode 6`); server listens on **8080** (hardcoded — Phase 2).
 - Backends: Adreno GPU (OpenCL) today; the Hexagon NPU path is **experimental
   and produces corrupted output**.
 - **Not built yet:** llama.cpp RPC mesh / peer discovery. No NSD/mDNS code
@@ -55,6 +61,8 @@ and watches the server over JNI.
 - **Commits:** Conventional Commits, lowercase scope, imperative subject, no
   trailing period, no body paragraphs. E.g. `fix(ui): drop stale transfer
   errors on launch`.
+- **Comments:** only when the code can't explain itself. Keep names and
+  structure self-explanatory instead of narrating what a line does.
 - **Pure logic + tests:** keep `canLoad`, `canDelete`, `selectionEnabled`,
   `formatSize`, and download/import parsing as pure functions with JVM unit
   tests. Preserve that separation.
