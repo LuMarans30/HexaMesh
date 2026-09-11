@@ -19,11 +19,13 @@ class NodeControllerTest {
 
     private lateinit var locks: FakeLocks
     private lateinit var engine: FakeEngine
+    private lateinit var settings: FakeSettings
 
     @Before
     fun setUp() {
         locks = FakeLocks()
         engine = FakeEngine()
+        settings = FakeSettings()
     }
 
     private fun TestScope.newController(): NodeController {
@@ -35,6 +37,7 @@ class NodeControllerTest {
                     apiKey = "key",
                     serverDiedMessage = "server died",
                     locks = locks,
+                    settings = settings,
                 ),
                 engine,
                 backgroundScope,
@@ -76,6 +79,45 @@ class NodeControllerTest {
         assertEquals("/cache", config.cacheDir)
         assertEquals("key", config.apiKey)
         assertEquals(8080, config.port)
+
+        controller.unload()
+    }
+
+    @Test
+    fun `a custom port is threaded into the engine and the serving url`() = runTest {
+        val controller = newController()
+        settings.portValue = 9090
+        engine.status = EngineStatus(EngineStatus.RUNNING, "ready")
+
+        controller.applyModel(MODEL)
+        runCurrent()
+
+        assertEquals(9090, engine.started.single().port)
+
+        val running = controller.state.value
+        assertTrue(running is NodeState.Running)
+        assertTrue((running as NodeState.Running).serverUrl.endsWith(":9090"))
+
+        controller.unload()
+    }
+
+    @Test
+    fun `each start re-reads the port from settings`() = runTest {
+        val controller = newController()
+        engine.status = EngineStatus(EngineStatus.RUNNING, "ready")
+
+        controller.applyModel(MODEL)
+        runCurrent()
+        controller.unload()
+
+        settings.portValue = 9090
+        controller.applyModel(MODEL)
+        runCurrent()
+
+        assertEquals(listOf(8080, 9090), engine.started.map { it.port })
+        val running = controller.state.value
+        assertTrue(running is NodeState.Running)
+        assertTrue((running as NodeState.Running).serverUrl.endsWith(":9090"))
 
         controller.unload()
     }
@@ -189,6 +231,11 @@ class NodeControllerTest {
         override fun release() {
             releases++
         }
+    }
+
+    private class FakeSettings(var portValue: Int = 8080) : NodeSettings {
+        override val port: Int
+            get() = portValue
     }
 
     private class FakeEngine : Engine {

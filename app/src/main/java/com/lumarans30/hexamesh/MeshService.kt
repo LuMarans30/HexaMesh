@@ -14,6 +14,7 @@ import com.lumarans30.hexamesh.node.NodeState
 import com.lumarans30.hexamesh.platform.ApiKeyManager
 import com.lumarans30.hexamesh.platform.LockManager
 import com.lumarans30.hexamesh.platform.Notifications
+import com.lumarans30.hexamesh.platform.ServerSettings
 import kotlinx.coroutines.flow.StateFlow
 
 /** Persistent foreground service that hosts the HexaMesh node. */
@@ -49,6 +50,7 @@ class MeshService : Service() {
                 apiKey = ApiKeyManager.getOrCreateApiKey(this),
                 serverDiedMessage = getString(R.string.state_server_died),
                 locks = LockManager(this),
+                settings = ServerSettings.from(this),
             ),
             RustEngine(),
         )

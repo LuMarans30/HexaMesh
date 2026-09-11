@@ -37,6 +37,10 @@ class NodeController(
 
     @Volatile
     private var activeModelPath: String? = null
+
+    @Volatile
+    private var activePort: Int = env.settings.port
+
     private var statusJob: Job? = null
 
     fun start(modelPath: String?) {
@@ -57,6 +61,8 @@ class NodeController(
 
             running = true
             activeModelPath = modelPath
+            val port = env.settings.port
+            activePort = port
             env.locks.acquire()
             post(NodeState.Starting(modelPath))
 
@@ -66,7 +72,7 @@ class NodeController(
                         modelPath = modelPath,
                         nativeLibDir = env.nativeLibDir,
                         cacheDir = env.cacheDir,
-                        port = SERVER_PORT,
+                        port = port,
                         backend = BACKEND,
                         apiKey = env.apiKey,
                     )
@@ -162,7 +168,7 @@ class NodeController(
 
     private fun lanServerUrl(): String {
         val host = lanIpv4Address() ?: "127.0.0.1"
-        return "http://$host:$SERVER_PORT"
+        return "http://$host:$activePort"
     }
 
     private fun lanIpv4Address(): String? =
@@ -176,7 +182,6 @@ class NodeController(
         }.getOrNull()
 
     companion object {
-        private const val SERVER_PORT = 8080
         private const val BACKEND = "GPU"
         private const val FAILED_TO_START = "Failed to start the Rust engine"
         private const val STATUS_POLL_INTERVAL_MS = 500L

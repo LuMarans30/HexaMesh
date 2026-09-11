@@ -12,7 +12,7 @@
     <string name="add_model">Add a model</string>
     <string name="no_model_found">No model found. Push a GGUF to this phone:</string>
     <string name="model_url">Model URL</string>
-    <string name="model_url_hint">https://…/model.gguf</string>
+    <string name="model_url_hint">https://.../model.gguf</string>
     <string name="download">Download</string>
     <string name="invalid_model_url">Enter a direct link to a .gguf file</string>
     <string name="import_from_storage">Import from storage</string>
@@ -45,6 +45,12 @@
     <string name="mesh_placeholder_body">RPC meshing and peer discovery are not built yet.</string>
     <string name="logs_placeholder_title">Logs</string>
     <string name="logs_placeholder_body">Local diagnostics are coming in a later update.</string>
-    <string name="settings_placeholder_title">Settings</string>
-    <string name="settings_placeholder_body">Persisted port and discovery settings are coming in a later update.</string>
+    <string name="server_port">Server port</string>
+    <string name="server_port_hint">The llama-server listens on this port. A change takes effect
+        the next time the node starts.</string>
+    <string name="invalid_port">Enter a port between %1$d and %2$d</string>
+    <string name="apply">Apply</string>
+    <string name="lan_warning_title">Plain HTTP traffic</string>
+    <string name="lan_warning_body">Traffic to the node is unencrypted. Run it only on a network
+        you trust, and keep the API key private.</string>
 </resources>

@@ -12,4 +12,5 @@ data class NodeEnvironment(
     val apiKey: String,
     val serverDiedMessage: String,
     val locks: Locks,
+    val settings: NodeSettings,
 )

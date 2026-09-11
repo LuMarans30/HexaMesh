@@ -45,9 +45,10 @@ import com.lumarans30.hexamesh.node.NodeState
  * view-model lookups so they can be previewed and tested with plain state.
  */
 @Composable
-fun HexaMeshApp(
+fun hexaMeshApp(
     nodeViewModel: NodeViewModel,
     transferViewModel: TransferViewModel,
+    settingsViewModel: SettingsViewModel,
     batteryExempt: Boolean,
     onPickModel: () -> Unit,
     onOpenAllFilesSettings: () -> Unit,
@@ -56,6 +57,7 @@ fun HexaMeshApp(
 ) {
     val nodeState by nodeViewModel.state.collectAsStateWithLifecycle()
     val transfer by transferViewModel.uiState.collectAsStateWithLifecycle()
+    val port by settingsViewModel.port.collectAsStateWithLifecycle()
 
     val state =
         ManagerUiState(
@@ -101,7 +103,13 @@ fun HexaMeshApp(
             )
         }
 
-    hexaMeshShell(state = state, actions = actions, modifier = modifier)
+    hexaMeshShell(
+        state = state,
+        actions = actions,
+        port = port,
+        onPortChange = settingsViewModel::setPort,
+        modifier = modifier,
+    )
 }
 
 /**
@@ -113,6 +121,8 @@ fun HexaMeshApp(
 private fun hexaMeshShell(
     state: ManagerUiState,
     actions: ManagerActions,
+    port: Int,
+    onPortChange: (Int) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     var tab by rememberSaveable { mutableStateOf(HexaTab.Manage) }
@@ -169,9 +179,9 @@ private fun hexaMeshShell(
                     )
 
                 HexaTab.Settings ->
-                    placeholderTab(
-                        title = stringResource(R.string.settings_placeholder_title),
-                        body = stringResource(R.string.settings_placeholder_body),
+                    settingsScreen(
+                        port = port,
+                        onPortChange = onPortChange,
                         modifier = Modifier.padding(innerPadding),
                     )
             }

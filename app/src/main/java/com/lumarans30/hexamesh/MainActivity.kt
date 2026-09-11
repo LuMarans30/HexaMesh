@@ -19,8 +19,9 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import com.lumarans30.hexamesh.platform.AllFilesAccess
-import com.lumarans30.hexamesh.ui.HexaMeshApp
+import com.lumarans30.hexamesh.ui.hexaMeshApp
 import com.lumarans30.hexamesh.ui.NodeViewModel
+import com.lumarans30.hexamesh.ui.SettingsViewModel
 import com.lumarans30.hexamesh.ui.TransferViewModel
 import com.lumarans30.hexamesh.ui.hexaMeshTheme
 
@@ -29,6 +30,7 @@ class MainActivity : ComponentActivity() {
 
     private val nodeViewModel: NodeViewModel by viewModels()
     private val transferViewModel: TransferViewModel by viewModels()
+    private val settingsViewModel: SettingsViewModel by viewModels()
 
     private val batteryHandler = Handler(Looper.getMainLooper())
 
@@ -46,9 +48,10 @@ class MainActivity : ComponentActivity() {
 
         setContent {
             hexaMeshTheme {
-                HexaMeshApp(
+                hexaMeshApp(
                     nodeViewModel = nodeViewModel,
                     transferViewModel = transferViewModel,
+                    settingsViewModel = settingsViewModel,
                     batteryExempt = batteryExempt,
                     onPickModel = { pickModel.launch(arrayOf("*/*")) },
                     onOpenAllFilesSettings = ::openAllFilesSettings,
