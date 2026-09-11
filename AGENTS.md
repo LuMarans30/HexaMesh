@@ -75,7 +75,7 @@ reason.
 | 1 | Tab shell (Manage + placeholders) | ✅ landed |
 | 2 | Settings: persisted port + mDNS/NSD + fallback IPs | port landed; NSD + fallback IPs moved to phase 4 |
 | 2.5 | Custom launch args: editable defaults, locked required flags | ✅ landed |
-| 3 | Logs tab (local diagnostics only) | in progress |
+| 3 | Logs tab (local diagnostics only) | logs + tok/s + thermal landed; memory next |
 | 4 | Mesh tab + per-peer logs | blocked on RPC backend |
 
 Phase notes (the load-bearing bits):
@@ -90,12 +90,16 @@ Phase notes (the load-bearing bits):
   fallback-IP list are deferred to Phase 4: until RPC meshing exists they have no
   consumer, and building them now would freeze the peer protocol before
   `PeerNode` is defined.
-- **3 —** build the data sources first: tail the supervisor's
-  `cacheDir/llama-server.log` (already written by `engine.rs` `spawn_pump`, so no
-  core change needed), poll `127.0.0.1:<port>/slots` for tok/s, read memory
-  (`ActivityManager`/`Debug.MemoryInfo`/`/proc/<pid>/status`) and thermal
-  (`PowerManager` + `/sys/class/thermal/*`). Terminal view is a `LazyColumn`
-  over a ~2000-line capped buffer. Per-peer logs are out of scope here.
+- **3 —** diagnostics on the Logs tab. Logs: tail the supervisor's
+  `cacheDir/llama-server.log` (written by `engine.rs` `spawn_pump`, no core
+  change). tok/s: parse `tg = <n> t/s` from the `slot print_timing` log line —
+  `/slots` and `/metrics` are off unless launched with `--slots`/`--metrics`, and
+  the `/metrics` rate gauge only updates at slot reset then clears on each
+  scrape, so neither is a live source. Thermal: hottest CPU/GPU zone from
+  `/sys/class/thermal/thermal_zone*` (millidegrees C, readable by the app).
+  Memory is still open: the server is a separate process, so its RSS needs the
+  child PID exposed from the core. Terminal view is a `LazyColumn` over a
+  ~2000-line capped buffer. Per-peer logs are out of scope here.
 - **4 —** blocked until llama.cpp RPC meshing exists. Define the data models
   (`PeerNode`, `LayerAssignment`, `PeerStats`) before any UI; render with
   Compose `Canvas`; prefer one merged, timestamped, peer-filterable log stream.
