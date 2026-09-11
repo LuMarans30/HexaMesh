@@ -74,8 +74,8 @@ reason.
 | Phase | Goal | Status |
 | --- | --- | --- |
 | 0 | State refactor: ViewModels, `nodeScreen(state, actions)`, no process-global node state, bound-service re-sync | ✅ landed |
-| 1 | Tab shell (Manage + placeholders) | next |
-| 2 | Settings: persisted port + mDNS/NSD + fallback IPs | |
+| 1 | Tab shell (Manage + placeholders) | ✅ landed |
+| 2 | Settings: persisted port + mDNS/NSD + fallback IPs | next |
 | 3 | Logs tab (local diagnostics only) | |
 | 4 | Mesh tab + per-peer logs | blocked on RPC backend |
 
@@ -114,7 +114,6 @@ Phase notes (the load-bearing bits):
 - `bridge/ServerConfig.kt` has a `port`, but `node/NodeController.kt` hardcodes `8080`.
 - No settings persistence yet (Phase 2).
 - `bridge/Engine.kt` only exposes `start/stop/pollStatus` — no logs/metrics channel.
-- Single screen, no navigation structure (Phase 1).
 
 ## Decisions (do not re-litigate)
 
