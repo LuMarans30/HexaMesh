@@ -3,7 +3,7 @@ package com.lumarans30.hexamesh.node
 import java.io.File
 import java.io.IOException
 import java.io.InputStream
-import kotlin.coroutines.coroutineContext
+import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
 
 /** Result of importing a file into the models directory. */
@@ -106,7 +106,7 @@ private suspend fun copyInto(
         var copied = 0L
         var reported = 0L
         while (true) {
-            coroutineContext.ensureActive()
+            currentCoroutineContext().ensureActive()
             val read = input.read(buffer)
             if (read < 0) break
             output.write(buffer, 0, read)

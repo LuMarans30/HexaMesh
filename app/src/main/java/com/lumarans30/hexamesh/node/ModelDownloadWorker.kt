@@ -15,9 +15,9 @@ import java.io.File
 import java.io.IOException
 import java.net.HttpURLConnection
 import java.net.URL
-import kotlin.coroutines.coroutineContext
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.withContext
 
@@ -93,7 +93,7 @@ class ModelDownloadWorker(appContext: Context, params: WorkerParameters) :
                         var reportedAt = 0L
 
                         while (true) {
-                            coroutineContext.ensureActive()
+                            currentCoroutineContext().ensureActive()
                             val read = input.read(buffer)
                             if (read < 0) break
                             output.write(buffer, 0, read)
