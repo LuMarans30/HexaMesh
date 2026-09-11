@@ -6,4 +6,6 @@ package com.lumarans30.hexamesh.node
  */
 interface NodeSettings {
     val port: Int
+
+    val launchArgs: List<String>
 }

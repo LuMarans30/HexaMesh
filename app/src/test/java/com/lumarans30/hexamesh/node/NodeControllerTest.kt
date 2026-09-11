@@ -123,6 +123,20 @@ class NodeControllerTest {
     }
 
     @Test
+    fun `launch args are threaded into the engine config`() = runTest {
+        val controller = newController()
+        settings.launchArgsValue = listOf("-t", "8", "--no-warmup")
+        engine.status = EngineStatus(EngineStatus.RUNNING, "ready")
+
+        controller.applyModel(MODEL)
+        runCurrent()
+
+        assertEquals("-t\n8\n--no-warmup", engine.started.single().extraArgs)
+
+        controller.unload()
+    }
+
+    @Test
     fun `unload announces stopping before releasing locks`() = runTest {
         val controller = newController()
         controller.applyModel(MODEL)
@@ -233,9 +247,15 @@ class NodeControllerTest {
         }
     }
 
-    private class FakeSettings(var portValue: Int = 8080) : NodeSettings {
+    private class FakeSettings(
+        var portValue: Int = 8080,
+        var launchArgsValue: List<String> = emptyList(),
+    ) : NodeSettings {
         override val port: Int
             get() = portValue
+
+        override val launchArgs: List<String>
+            get() = launchArgsValue
     }
 
     private class FakeEngine : Engine {

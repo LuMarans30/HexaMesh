@@ -20,6 +20,8 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
@@ -58,7 +60,7 @@ fun hexaMeshApp(
 ) {
     val nodeState by nodeViewModel.state.collectAsStateWithLifecycle()
     val transfer by transferViewModel.uiState.collectAsStateWithLifecycle()
-    val port by settingsViewModel.port.collectAsStateWithLifecycle()
+    val launchArgs by settingsViewModel.launchArgs.collectAsStateWithLifecycle()
     val logLines by logsViewModel.lines.collectAsStateWithLifecycle()
 
     val state =
@@ -108,10 +110,10 @@ fun hexaMeshApp(
     hexaMeshShell(
         state = state,
         actions = actions,
-        port = port,
+        launchArgs = launchArgs,
+        onApplySettings = settingsViewModel::apply,
         logLines = logLines,
         tailLogs = logsViewModel::tail,
-        onPortChange = settingsViewModel::setPort,
         modifier = modifier,
     )
 }
@@ -125,19 +127,21 @@ fun hexaMeshApp(
 private fun hexaMeshShell(
     state: ManagerUiState,
     actions: ManagerActions,
-    port: Int,
+    launchArgs: String,
+    onApplySettings: (String) -> Unit,
     logLines: List<String>,
     tailLogs: suspend () -> Unit,
-    onPortChange: (Int) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     var tab by rememberSaveable { mutableStateOf(HexaTab.Manage) }
     val tabState = rememberSaveableStateHolder()
+    val snackbarHostState = remember { SnackbarHostState() }
 
     BackHandler(enabled = tab != HexaTab.Manage) { tab = HexaTab.Manage }
 
     Scaffold(
         modifier = modifier.fillMaxSize(),
+        snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             TopAppBar(
                 title = {
@@ -186,8 +190,9 @@ private fun hexaMeshShell(
 
                 HexaTab.Settings ->
                     settingsScreen(
-                        port = port,
-                        onPortChange = onPortChange,
+                        launchArgs = launchArgs,
+                        onApply = onApplySettings,
+                        snackbarHostState = snackbarHostState,
                         modifier = Modifier.padding(innerPadding),
                     )
             }

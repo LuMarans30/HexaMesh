@@ -12,6 +12,7 @@ pub struct ServerConfig {
     pub port: i32,
     pub backend: String,
     pub api_key: String,
+    pub extra_args: Vec<String>,
 }
 
 impl ServerConfig {
@@ -25,6 +26,13 @@ impl ServerConfig {
             jstr.try_to_string(env)
         };
 
+        let extra_args = get_str("extraArgs")?
+            .split('\n')
+            .map(str::trim)
+            .filter(|arg| !arg.is_empty())
+            .map(String::from)
+            .collect();
+
         Ok(Self {
             model_path: get_str("modelPath")?,
             lib_dir: get_str("nativeLibDir")?,
@@ -34,6 +42,7 @@ impl ServerConfig {
             port: env
                 .get_field(obj, JNIString::new("port"), jni_sig!("I"))?
                 .i()?,
+            extra_args,
         })
     }
 }

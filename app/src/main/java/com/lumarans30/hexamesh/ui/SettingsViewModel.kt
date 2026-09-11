@@ -5,12 +5,12 @@ import androidx.lifecycle.AndroidViewModel
 import com.lumarans30.hexamesh.platform.ServerSettings
 import kotlinx.coroutines.flow.StateFlow
 
-/** Exposes the persisted server settings the Settings tab edits. */
+/** Exposes the persisted launch args the Settings tab edits. */
 class SettingsViewModel(application: Application) : AndroidViewModel(application) {
 
     private val settings = ServerSettings.from(application)
 
-    val port: StateFlow<Int> = settings.portFlow
+    val launchArgs: StateFlow<String> = settings.launchArgsFlow
 
-    fun setPort(value: Int) = settings.setPort(value)
+    fun apply(launchArgs: String) = settings.setLaunchArgs(launchArgs)
 }

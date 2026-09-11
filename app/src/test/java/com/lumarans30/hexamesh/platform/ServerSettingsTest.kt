@@ -2,7 +2,6 @@ package com.lumarans30.hexamesh.platform
 
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
-import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -25,48 +24,61 @@ class ServerSettingsTest {
     }
 
     @Test
-    fun `parsePort trims and validates`() {
-        assertEquals(8080, parsePort("8080"))
-        assertEquals(9090, parsePort("  9090 "))
-        assertNull(parsePort(""))
-        assertNull(parsePort("80"))
-        assertNull(parsePort("70000"))
-        assertNull(parsePort("abc"))
+    fun `launch args default when nothing is stored`() {
+        val settings = ServerSettings(FakeStore())
+
+        assertEquals(DEFAULT_LAUNCH_ARGS, settings.launchArgsText)
+        assertEquals(DEFAULT_LAUNCH_ARGS, settings.launchArgsFlow.value)
+        assertEquals(parseLaunchArgs(DEFAULT_LAUNCH_ARGS), settings.launchArgs)
     }
 
     @Test
-    fun `the initial value is coerced into the valid range`() {
-        val settings = ServerSettings({ 80 }, {})
+    fun `the port is parsed from the launch args`() {
+        val settings = ServerSettings(FakeStore())
+
+        settings.setLaunchArgs("--port 9090 -t 6")
+
+        assertEquals(9090, settings.port)
+    }
+
+    @Test
+    fun `the port falls back when the args omit it`() {
+        val settings = ServerSettings(FakeStore())
+
+        settings.setLaunchArgs("-t 6")
 
         assertEquals(DEFAULT_SERVER_PORT, settings.port)
-        assertEquals(DEFAULT_SERVER_PORT, settings.portFlow.value)
     }
 
     @Test
-    fun `setPort writes once and ignores invalid or unchanged values`() {
-        var stored = 8080
-        var writes = 0
-        val settings = ServerSettings({ stored }, { stored = it; writes++ })
+    fun `an instance reads the args written by another`() {
+        val store = FakeStore()
+        val service = ServerSettings(store)
+        val ui = ServerSettings(store)
 
-        settings.setPort(9090)
-        assertEquals(9090, stored)
+        ui.setLaunchArgs("--port 9091 -t 8")
+
+        assertEquals("--port 9091 -t 8", service.launchArgsText)
+        assertEquals(9091, service.port)
+    }
+
+    @Test
+    fun `stored locked flags are stripped but the port is kept`() {
+        val settings = ServerSettings(FakeStore())
+
+        settings.setLaunchArgs("-m other.gguf --port 9090 -t 8")
+
+        assertEquals(listOf("--port", "9090", "-t", "8"), settings.launchArgs)
         assertEquals(9090, settings.port)
-        assertEquals(9090, settings.portFlow.value)
-
-        settings.setPort(80)
-        settings.setPort(9090)
-        assertEquals(1, writes)
-        assertEquals(9090, stored)
     }
 
-    @Test
-    fun `an instance reads the port written by another`() {
-        var stored = 8080
-        val service = ServerSettings({ stored }, { stored = it })
-        val ui = ServerSettings({ stored }, { stored = it })
+    private class FakeStore(
+        val strings: MutableMap<String, String> = mutableMapOf(),
+    ) : SettingsStore {
+        override fun getString(key: String, defaultValue: String): String = strings[key] ?: defaultValue
 
-        ui.setPort(9090)
-
-        assertEquals(9090, service.port)
+        override fun putString(key: String, value: String) {
+            strings[key] = value
+        }
     }
 }

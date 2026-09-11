@@ -62,6 +62,7 @@ class NodeController(
             running = true
             activeModelPath = modelPath
             val port = env.settings.port
+            val extraArgs = env.settings.launchArgs.joinToString("\n")
             activePort = port
             env.locks.acquire()
             post(NodeState.Starting(modelPath))
@@ -75,6 +76,7 @@ class NodeController(
                         port = port,
                         backend = BACKEND,
                         apiKey = env.apiKey,
+                        extraArgs = extraArgs,
                     )
                 )
             } catch (t: Throwable) {

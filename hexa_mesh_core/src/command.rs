@@ -9,12 +9,13 @@ pub fn build_server_command(exe: &Path, config: &ServerConfig) -> Command {
     let mut cmd = Command::new(exe);
 
     let ServerConfig {
-        port,
         backend,
         model_path,
         lib_dir,
         cache_dir,
         api_key,
+        extra_args,
+        ..
     } = config;
 
     let existing_env =
@@ -34,47 +35,41 @@ pub fn build_server_command(exe: &Path, config: &ServerConfig) -> Command {
         None => format!("{lib_dir}:{system_libs}"),
     };
 
-    let port_str = port.to_string();
-
     let cl_cache_dir = Path::new(&cache_dir).join("cl-cache");
     let work_dir = Path::new(&cache_dir).join("run");
 
     let _ = fs::create_dir_all(&cl_cache_dir);
     let _ = fs::create_dir_all(&work_dir);
 
-    let mut args = vec![
-        "--host",
-        "0.0.0.0",
-        "--port",
-        &port_str,
-        "-m",
-        &model_path,
-        "-fa",
-        "on",
-        "-t",
-        "6",
-        "-ub",
-        "16",
-        "--no-warmup",
+    // Only the args the app owns. Everything else (port, sampling, threads, GPU
+    // layers, ...) arrives through `extra_args` so the user can edit the defaults.
+    let mut args: Vec<String> = vec![
+        "--host".into(),
+        "0.0.0.0".into(),
+        "-m".into(),
+        model_path.clone(),
     ];
 
     if !api_key.is_empty() {
-        args.extend(["--api-key", api_key]);
+        args.push("--api-key".into());
+        args.push(api_key.clone());
     }
 
     match backend.to_lowercase().as_str() {
         "gpu" | "opencl" => {
-            args.extend(["--device", "GPUOpenCL", "-ngl", "99"]);
+            args.push("--device".into());
+            args.push("GPUOpenCL".into());
             cmd.env("GGML_OPENCL_KERNEL_CACHE_DIR", cl_cache_dir.as_os_str());
         }
         "npu" | "hexagon" => {
-            args.extend(["--device", "HTP0", "-ngl", "99"]);
+            args.push("--device".into());
+            args.push("HTP0".into());
             cmd.env("GGML_HEXAGON_DEVICES", "HTP0");
         }
-        _ => {
-            args.extend(["-ngl", "0"]);
-        }
+        _ => {}
     }
+
+    args.extend(extra_args.iter().cloned());
 
     cmd.args(&args)
         .current_dir(&work_dir)
