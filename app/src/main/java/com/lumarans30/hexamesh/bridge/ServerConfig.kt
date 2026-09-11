@@ -1,5 +1,11 @@
 package com.lumarans30.hexamesh.bridge
 
+/** Role the native supervisor runs: an OpenAI-compatible server or an RPC peer. */
+object ServerRole {
+    const val SERVER = "server"
+    const val RPC = "rpc"
+}
+
 data class ServerConfig(
     @JvmField val modelPath: String,
     @JvmField val nativeLibDir: String,
@@ -9,4 +15,8 @@ data class ServerConfig(
     @JvmField val apiKey: String? = null,
     /** Newline-joined launch args; tokens never contain whitespace. */
     @JvmField val extraArgs: String = "",
+    /** [ServerRole.SERVER] or [ServerRole.RPC]; mirrored by the Rust `ServerConfig`. */
+    @JvmField val role: String = ServerRole.SERVER,
+    /** Comma-joined `host:port` peers for llama-server's `--rpc`, empty when solo. */
+    @JvmField val rpcServers: String = "",
 )

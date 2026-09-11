@@ -31,6 +31,12 @@ class LaunchArgsTest {
     }
 
     @Test
+    fun `rpc is app-owned and stripped from user args`() {
+        assertEquals(listOf("--rpc"), lockedLaunchFlags(parseLaunchArgs("--rpc 10.0.0.1:50052")))
+        assertEquals(listOf("-t", "6"), effectiveLaunchArgs("-t 6 --rpc 10.0.0.1:50052"))
+    }
+
+    @Test
     fun `parses the last port, space and equals forms`() {
         assertEquals(9090, parseLaunchPort(parseLaunchArgs("--port 9090")))
         assertEquals(9090, parseLaunchPort(parseLaunchArgs("--port=9090")))

@@ -43,15 +43,15 @@ class NodeController(
 
     private var statusJob: Job? = null
 
-    fun start(modelPath: String?) {
-        scope.launch { applyModel(modelPath) }
+    fun start(modelPath: String?, rpcServers: String? = null) {
+        scope.launch { applyModel(modelPath, rpcServers) }
     }
 
     fun stop() {
         scope.launch { unload() }
     }
 
-    internal suspend fun applyModel(modelPath: String?) =
+    internal suspend fun applyModel(modelPath: String?, rpcServers: String? = null) =
         transition.withLock {
             if (modelPath == null) {
                 post(NodeState.Idle)
@@ -77,6 +77,8 @@ class NodeController(
                         backend = BACKEND,
                         apiKey = env.apiKey,
                         extraArgs = extraArgs,
+                        role = env.settings.role,
+                        rpcServers = rpcServers.orEmpty(),
                     )
                 )
             } catch (t: Throwable) {

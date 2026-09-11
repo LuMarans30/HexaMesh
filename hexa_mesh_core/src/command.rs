@@ -5,23 +5,82 @@ use std::process::{Command, Stdio};
 
 use crate::config::ServerConfig;
 
+/// llama-server: the coordinator that serves the OpenAI API and can offload to
+/// peers. Only the args the app owns are built here; port, sampling, threads and
+/// GPU layers arrive through `extra_args` so the user can edit the defaults.
 pub fn build_server_command(exe: &Path, config: &ServerConfig) -> Command {
-    let mut cmd = Command::new(exe);
+    let mut cmd = base_command(exe, config);
 
+    let mut args: Vec<String> = vec![
+        "--host".into(),
+        "0.0.0.0".into(),
+        "-m".into(),
+        config.model_path.clone(),
+    ];
+
+    if !config.api_key.is_empty() {
+        args.push("--api-key".into());
+        args.push(config.api_key.clone());
+    }
+
+    // `--device` restricts llama.cpp to the listed devices, and RPC peers are
+    // registered separately, so pinning a device would exclude them. When
+    // meshing, let llama.cpp pick every available device instead.
+    if config.rpc_servers.is_empty()
+        && let Some(device) = backend_device(&config.backend)
+    {
+        args.push("--device".into());
+        args.push(device.into());
+    }
+
+    if !config.rpc_servers.is_empty() {
+        args.push("--rpc".into());
+        args.push(config.rpc_servers.clone());
+    }
+
+    args.extend(config.extra_args.iter().cloned());
+
+    cmd.args(&args);
+    cmd
+}
+
+/// ggml-rpc-server: exposes this device's accelerators so a coordinator can use
+/// them. It takes a much smaller flag set than llama-server, so the user's
+/// launch args are intentionally not forwarded.
+pub fn build_rpc_command(exe: &Path, config: &ServerConfig) -> Command {
+    let mut cmd = base_command(exe, config);
+
+    let mut args: Vec<String> = vec![
+        "--host".into(),
+        "0.0.0.0".into(),
+        "--port".into(),
+        config.port.to_string(),
+    ];
+
+    if let Some(device) = backend_device(&config.backend) {
+        args.push("--device".into());
+        args.push(device.into());
+    }
+
+    cmd.args(&args);
+    cmd
+}
+
+/// Environment and process hygiene shared by both roles: the Qualcomm DSP search
+/// paths, the cache/work directories, and a SIGKILL on JVM death.
+fn base_command(exe: &Path, config: &ServerConfig) -> Command {
     let ServerConfig {
-        backend,
-        model_path,
         lib_dir,
         cache_dir,
-        api_key,
-        extra_args,
+        backend,
         ..
     } = config;
+
+    let mut cmd = Command::new(exe);
 
     let existing_env =
         |var: &str| -> Option<String> { std::env::var(var).ok().filter(|v| !v.is_empty()) };
 
-    // Environment setup for Qualcomm DSPs
     let adsp_fallback = "/system/lib/rfsa/adsp;/system/vendor/lib/rfsa/adsp;/dsp;/vendor/dsp";
     let system_libs = "/vendor/lib64:/system/lib64";
 
@@ -35,44 +94,23 @@ pub fn build_server_command(exe: &Path, config: &ServerConfig) -> Command {
         None => format!("{lib_dir}:{system_libs}"),
     };
 
-    let cl_cache_dir = Path::new(&cache_dir).join("cl-cache");
-    let work_dir = Path::new(&cache_dir).join("run");
+    let cl_cache_dir = Path::new(cache_dir).join("cl-cache");
+    let work_dir = Path::new(cache_dir).join("run");
 
     let _ = fs::create_dir_all(&cl_cache_dir);
     let _ = fs::create_dir_all(&work_dir);
 
-    // Only the args the app owns. Everything else (port, sampling, threads, GPU
-    // layers, ...) arrives through `extra_args` so the user can edit the defaults.
-    let mut args: Vec<String> = vec![
-        "--host".into(),
-        "0.0.0.0".into(),
-        "-m".into(),
-        model_path.clone(),
-    ];
-
-    if !api_key.is_empty() {
-        args.push("--api-key".into());
-        args.push(api_key.clone());
-    }
-
     match backend.to_lowercase().as_str() {
         "gpu" | "opencl" => {
-            args.push("--device".into());
-            args.push("GPUOpenCL".into());
             cmd.env("GGML_OPENCL_KERNEL_CACHE_DIR", cl_cache_dir.as_os_str());
         }
         "npu" | "hexagon" => {
-            args.push("--device".into());
-            args.push("HTP0".into());
             cmd.env("GGML_HEXAGON_DEVICES", "HTP0");
         }
         _ => {}
     }
 
-    args.extend(extra_args.iter().cloned());
-
-    cmd.args(&args)
-        .current_dir(&work_dir)
+    cmd.current_dir(&work_dir)
         .env("LD_LIBRARY_PATH", &ld_path)
         .env("ADSP_LIBRARY_PATH", &adsp_path)
         .stdout(Stdio::null())
@@ -88,4 +126,23 @@ pub fn build_server_command(exe: &Path, config: &ServerConfig) -> Command {
     }
 
     cmd
+}
+
+/// Maps the app's backend label to a ggml device name, or None to let the
+/// binary pick its default.
+fn backend_device(backend: &str) -> Option<&'static str> {
+    match backend.to_lowercase().as_str() {
+        "gpu" | "opencl" => Some("GPUOpenCL"),
+        "npu" | "hexagon" => Some("HTP0"),
+        _ => None,
+    }
+}
+
+/// Builds the right command for the config's role.
+pub fn build_command(exe: &Path, config: &ServerConfig) -> Command {
+    if config.is_rpc() {
+        build_rpc_command(exe, config)
+    } else {
+        build_server_command(exe, config)
+    }
 }

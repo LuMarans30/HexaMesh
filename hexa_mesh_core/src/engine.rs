@@ -18,7 +18,11 @@ use std::time::{Duration, Instant};
 
 const SERVER_TAG: &str = "LlamaServer";
 const SERVER_BIN: &str = "libllamaserver.so";
+const RPC_SERVER_BIN: &str = "libggmlrpcserver.so";
+const SERVER_LABEL: &str = "llama-server";
+const RPC_LABEL: &str = "ggml-rpc-server";
 const LOG_FILE_NAME: &str = "llama-server.log";
+const RPC_LOG_FILE_NAME: &str = "rpc-server.log";
 const READINESS_TIMEOUT: Duration = Duration::from_secs(180);
 const TERM_GRACE: Duration = Duration::from_secs(4);
 const HEALTH_POLL_INTERVAL: Duration = Duration::from_millis(500);
@@ -27,20 +31,36 @@ const HEALTH_MAX_MISSES: u32 = 3;
 pub(crate) struct Supervisor {
     child: Child,
     port: u16,
+    label: &'static str,
+    probe: Probe,
     log_writer: Option<Arc<Mutex<LineWriter<File>>>>,
     is_alive: Arc<AtomicBool>,
 }
 
+/// How the supervisor proves the child is alive. llama-server answers HTTP;
+/// ggml-rpc-server has no HTTP surface, so accepting a connection is enough.
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum Probe {
+    Http,
+    Tcp,
+}
+
 impl Supervisor {
     pub(crate) fn supervise(config: ServerConfig) {
-        status::set(Status::Starting, "Starting llama-server...");
+        let (bin, log_name, label, probe) = if config.is_rpc() {
+            (RPC_SERVER_BIN, RPC_LOG_FILE_NAME, RPC_LABEL, Probe::Tcp)
+        } else {
+            (SERVER_BIN, LOG_FILE_NAME, SERVER_LABEL, Probe::Http)
+        };
 
-        let exe = Path::new(&config.lib_dir).join(SERVER_BIN);
-        let log_path = Path::new(&config.cache_dir).join(LOG_FILE_NAME);
+        status::set(Status::Starting, format!("Starting {label}..."));
+
+        let exe = Path::new(&config.lib_dir).join(bin);
+        let log_path = Path::new(&config.cache_dir).join(log_name);
 
         diagnostics::run_diagnostics(&exe, &config.lib_dir);
 
-        let mut sup = match Self::start(&exe, &config, &log_path) {
+        let mut sup = match Self::start(&exe, &config, &log_path, label, probe) {
             Ok(s) => s,
             Err(message) => {
                 error!("{message}");
@@ -54,13 +74,20 @@ impl Supervisor {
         }));
 
         if result.is_err() {
-            error!("llama-server supervisor panicked");
-            status::set(Status::Error, "llama-server supervisor panicked");
+            error!("{label} supervisor panicked");
+            status::set(Status::Error, format!("{label} supervisor panicked"));
         }
     }
 
-    fn start(exe: &Path, config: &ServerConfig, log_path: &Path) -> Result<Self, String> {
-        if !exe.exists() || !Path::new(&config.model_path).exists() {
+    fn start(
+        exe: &Path,
+        config: &ServerConfig,
+        log_path: &Path,
+        label: &'static str,
+        probe: Probe,
+    ) -> Result<Self, String> {
+        let needs_model = !config.is_rpc();
+        if !exe.exists() || (needs_model && !Path::new(&config.model_path).exists()) {
             return Err(format!(
                 "Pre-conditions failed (missing binary or model). exe={}, model={}",
                 exe.display(),
@@ -73,7 +100,7 @@ impl Supervisor {
 
         let log_writer = Self::open_log_file(log_path);
 
-        let mut cmd = command::build_server_command(exe, config);
+        let mut cmd = command::build_command(exe, config);
         let child = cmd
             .spawn()
             .map_err(|e| format!("execve failed for {}: {e}", exe.display()))?;
@@ -81,6 +108,8 @@ impl Supervisor {
         Ok(Self {
             child,
             port,
+            label,
+            probe,
             log_writer,
             is_alive: Arc::new(AtomicBool::new(true)),
         })
@@ -88,7 +117,7 @@ impl Supervisor {
 
     fn run(&mut self) {
         let pid = self.child.id();
-        info!("llama-server running with PID: {pid}");
+        info!("{} running with PID: {pid}", self.label);
 
         if let Some(stderr) = self.child.stderr.take() {
             self.spawn_pump(stderr, log::Level::Info, "");
@@ -105,7 +134,7 @@ impl Supervisor {
             match self.child.try_wait() {
                 Ok(Some(status)) => {
                     self.is_alive.store(false, Ordering::Relaxed);
-                    let reason = Self::exit_reason(status);
+                    let reason = Self::exit_reason(status, self.label);
                     error!("{reason}");
                     status::set(Status::Error, reason);
                     return;
@@ -177,6 +206,8 @@ impl Supervisor {
 
     fn spawn_health_probe(&self) {
         let port = self.port;
+        let label = self.label;
+        let probe = self.probe;
         let is_alive = Arc::clone(&self.is_alive);
 
         thread::spawn(move || {
@@ -194,10 +225,15 @@ impl Supervisor {
                     return;
                 }
 
-                if Self::probe_health(addr, req_bytes) {
+                let reachable = match probe {
+                    Probe::Http => Self::probe_health(addr, req_bytes),
+                    Probe::Tcp => Self::probe_tcp(addr),
+                };
+
+                if reachable {
                     misses = 0;
                     if current == Status::Starting as i32 {
-                        info!("llama-server is READY and serving tokens at :{port}");
+                        info!("{label} is READY and listening on :{port}");
                         status::transition(
                             Status::Starting,
                             Status::Running,
@@ -215,7 +251,7 @@ impl Supervisor {
                     // current == Status::Running
                     misses += 1;
                     if misses >= HEALTH_MAX_MISSES {
-                        let message = "llama-server stopped responding to /health.".to_string();
+                        let message = format!("{label} stopped responding on port {port}.");
                         error!("{message}");
                         status::transition(Status::Running, Status::Error, message);
                         return;
@@ -240,9 +276,13 @@ impl Supervisor {
         false
     }
 
-    fn exit_reason(s: ExitStatus) -> String {
+    fn probe_tcp(addr: SocketAddr) -> bool {
+        TcpStream::connect_timeout(&addr, Duration::from_millis(400)).is_ok()
+    }
+
+    fn exit_reason(s: ExitStatus, label: &str) -> String {
         if let Some(code) = s.code() {
-            format!("llama-server exited with code: {code}")
+            format!("{label} exited with code: {code}")
         } else if let Some(sig) = s.signal() {
             let reason = match sig {
                 libc::SIGSEGV => "SEGV: FastRPC memory violation or unsupported architecture",
@@ -250,9 +290,9 @@ impl Supervisor {
                 libc::SIGKILL => "KILL: Process killed externally or OOM-killer",
                 _ => "OTHER",
             };
-            format!("llama-server killed by signal {sig} ({reason})")
+            format!("{label} killed by signal {sig} ({reason})")
         } else {
-            "llama-server exited with an unknown status".to_string()
+            format!("{label} exited with an unknown status")
         }
     }
 

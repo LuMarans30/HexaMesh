@@ -13,6 +13,10 @@ pub struct ServerConfig {
     pub backend: String,
     pub api_key: String,
     pub extra_args: Vec<String>,
+    /// "server" (OpenAI API) or "rpc" (expose this device to a coordinator).
+    pub role: String,
+    /// Comma-joined `host:port` peers passed to llama-server's `--rpc`.
+    pub rpc_servers: String,
 }
 
 impl ServerConfig {
@@ -33,6 +37,11 @@ impl ServerConfig {
             .map(String::from)
             .collect();
 
+        // Read role through the closure before the raw field access below, so the
+        // closure's mutable borrow of `env` has ended.
+        let role = get_str("role")?;
+        let rpc_servers = get_str("rpcServers")?;
+
         Ok(Self {
             model_path: get_str("modelPath")?,
             lib_dir: get_str("nativeLibDir")?,
@@ -43,6 +52,12 @@ impl ServerConfig {
                 .get_field(obj, JNIString::new("port"), jni_sig!("I"))?
                 .i()?,
             extra_args,
+            role,
+            rpc_servers,
         })
+    }
+
+    pub fn is_rpc(&self) -> bool {
+        self.role.eq_ignore_ascii_case("rpc")
     }
 }

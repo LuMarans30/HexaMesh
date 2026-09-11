@@ -3,6 +3,7 @@ package com.lumarans30.hexamesh.node
 import com.lumarans30.hexamesh.bridge.Engine
 import com.lumarans30.hexamesh.bridge.EngineStatus
 import com.lumarans30.hexamesh.bridge.ServerConfig
+import com.lumarans30.hexamesh.bridge.ServerRole
 import com.lumarans30.hexamesh.platform.Locks
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.launch
@@ -137,6 +138,33 @@ class NodeControllerTest {
     }
 
     @Test
+    fun `the settings role is threaded into the engine config`() = runTest {
+        val controller = newController()
+        settings.roleValue = ServerRole.RPC
+        engine.status = EngineStatus(EngineStatus.RUNNING, "ready")
+
+        controller.applyModel(MODEL)
+        runCurrent()
+
+        assertEquals(ServerRole.RPC, engine.started.single().role)
+
+        controller.unload()
+    }
+
+    @Test
+    fun `rpc servers are threaded into the engine config`() = runTest {
+        val controller = newController()
+        engine.status = EngineStatus(EngineStatus.RUNNING, "ready")
+
+        controller.applyModel(MODEL, "192.168.1.76:50052")
+        runCurrent()
+
+        assertEquals("192.168.1.76:50052", engine.started.single().rpcServers)
+
+        controller.unload()
+    }
+
+    @Test
     fun `unload announces stopping before releasing locks`() = runTest {
         val controller = newController()
         controller.applyModel(MODEL)
@@ -250,12 +278,16 @@ class NodeControllerTest {
     private class FakeSettings(
         var portValue: Int = 8080,
         var launchArgsValue: List<String> = emptyList(),
+        var roleValue: String = ServerRole.SERVER,
     ) : NodeSettings {
         override val port: Int
             get() = portValue
 
         override val launchArgs: List<String>
             get() = launchArgsValue
+
+        override val role: String
+            get() = roleValue
     }
 
     private class FakeEngine : Engine {

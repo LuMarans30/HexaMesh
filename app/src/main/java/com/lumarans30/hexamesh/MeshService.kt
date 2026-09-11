@@ -28,6 +28,7 @@ class MeshService : Service() {
     companion object {
         private const val TAG = "MeshService"
         const val EXTRA_MODEL_PATH = "com.lumarans30.hexamesh.extra.MODEL_PATH"
+        const val EXTRA_RPC_SERVERS = "com.lumarans30.hexamesh.extra.RPC_SERVERS"
         const val ACTION_STOP = "com.lumarans30.hexamesh.action.STOP"
     }
 
@@ -99,7 +100,7 @@ class MeshService : Service() {
         }
 
         Log.i(TAG, "Starting node with model: $modelPath")
-        node.start(modelPath)
+        node.start(modelPath, intent?.getStringExtra(EXTRA_RPC_SERVERS))
         return START_STICKY
     }
 

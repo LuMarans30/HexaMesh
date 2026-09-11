@@ -84,7 +84,12 @@ fn start_inner<'local>(
     };
 
     STOP_REQUESTED.store(false, Ordering::Relaxed);
-    status::set(Status::Starting, "Starting llama-server...");
+    let starting = if config.is_rpc() {
+        "Starting ggml-rpc-server..."
+    } else {
+        "Starting llama-server..."
+    };
+    status::set(Status::Starting, starting);
 
     let handle = thread::spawn(move || {
         let result = catch_unwind(AssertUnwindSafe(|| {
