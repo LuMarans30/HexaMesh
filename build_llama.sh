@@ -5,11 +5,13 @@ set -euo pipefail
 LLAMA_DIR="llama.cpp"
 UI_DIST_DIR="$LLAMA_DIR/tools/ui/dist"
 
-if [ -d "$LLAMA_DIR" ]; then
+if [ -e "$LLAMA_DIR/.git" ]; then
 	git -C "$LLAMA_DIR" pull --ff-only
 else
 	git clone https://github.com/ggml-org/llama.cpp.git "$LLAMA_DIR"
 fi
+
+echo "Building llama.cpp at $(git -C "$LLAMA_DIR" rev-parse --short HEAD) ($(git -C "$LLAMA_DIR" log -1 --format=%cs))"
 
 if [ "${FORCE_UI:-0}" = "1" ] || [ -z "$(ls -A "$UI_DIST_DIR" 2>/dev/null || true)" ]; then
 	mkdir -p "$UI_DIST_DIR"

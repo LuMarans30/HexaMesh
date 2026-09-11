@@ -62,6 +62,7 @@ jobs:
             - name: Build llama.cpp for Snapdragon (Docker)
               run: |
                   cd llama.cpp
+                  echo "llama.cpp $(git rev-parse --short HEAD) ($(git log -1 --format=%cs))"
                   ./scripts/snapdragon/build.py --target adb
 
             - name: Grant execute permission for gradlew

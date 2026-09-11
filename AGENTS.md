@@ -39,8 +39,9 @@ and watches the server over JNI.
 
 - `-PskipRustBuild` reuses `app/build/jniLibs/`; drop it to rebuild the Rust
   core. `-PupdateRustDeps` runs `cargo update`.
-- `llama.cpp/` is a submodule (excluded from editor search); its `AGENTS.md` is
-  unrelated to this project.
+- `llama.cpp/` is an ignored, unpinned checkout at upstream `master` (excluded
+  from editor search); its `AGENTS.md` is unrelated to this project. `build_llama.sh`
+  and CI always pull the tip, so the build is not reproducible across dates.
 - CI (`.github/workflows/build.yml`) builds the APK, uploads artifacts, and
   releases on `v*` tags.
 - **Definition of done:** `testDebugUnitTest` green and `assembleDebug`
