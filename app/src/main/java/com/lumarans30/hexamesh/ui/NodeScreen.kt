@@ -10,22 +10,28 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Button
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ExtendedFloatingActionButton
+import androidx.compose.material3.FabPosition
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.RadioButton
@@ -34,10 +40,12 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -47,6 +55,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.lumarans30.hexamesh.R
@@ -56,10 +66,11 @@ import com.lumarans30.hexamesh.node.NodeState
 import com.lumarans30.hexamesh.node.parseDownloadRequest
 import java.io.File
 import java.util.Locale
+import kotlinx.coroutines.launch
 
 /**
- * Top-level control panel: model picker, node status and the load/unload
- * control.
+ * Top-level control panel: model picker, node status and the single primary
+ * start/stop action.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -93,10 +104,28 @@ fun nodeScreen(
 ) {
     val activeModelPath = (state as? NodeState.Running)?.modelPath
     var pendingDelete by remember { mutableStateOf<Model?>(null) }
+    var sheetOpen by rememberSaveable { mutableStateOf(false) }
+    val sheetState = rememberModalBottomSheetState()
+    val scope = rememberCoroutineScope()
+
+    fun closeSheet() {
+        scope
+            .launch { sheetState.hide() }
+            .invokeOnCompletion { if (!sheetState.isVisible) sheetOpen = false }
+    }
 
     Scaffold(
         modifier = modifier.fillMaxSize(),
         topBar = { TopAppBar(title = { Text(stringResource(R.string.app_name)) }) },
+        floatingActionButton = {
+            primaryActionFab(
+                state = state,
+                hasSelection = selectedPath != null,
+                onStart = onStart,
+                onStop = onStop,
+            )
+        },
+        floatingActionButtonPosition = FabPosition.End,
     ) { innerPadding ->
         Column(
             modifier =
@@ -105,15 +134,17 @@ fun nodeScreen(
                     .verticalScroll(rememberScrollState())
                     .padding(24.dp),
         ) {
+            modelsHeader(onAdd = { sheetOpen = true })
+
+            Spacer(Modifier.height(8.dp))
+
             if (models.isEmpty()) {
                 Text(
-                    "No model found. Push a GGUF to this phone:",
+                    stringResource(R.string.no_model_found),
                     style = MaterialTheme.typography.bodyMedium,
                 )
                 Text("  $adbPushHint", style = MaterialTheme.typography.bodySmall)
             } else {
-                Text("Models", style = MaterialTheme.typography.titleMedium)
-                Spacer(Modifier.height(8.dp))
                 modelList(
                     models = models,
                     selectedPath = selectedPath,
@@ -126,41 +157,39 @@ fun nodeScreen(
 
             Spacer(Modifier.height(16.dp))
 
-            downloadSection(
-                status = download,
-                error = downloadError,
-                onDownload = onDownload,
-                onCancel = onCancelDownload,
+            transfersSection(
+                download = download,
+                downloadError = downloadError,
+                importProgress = importProgress,
+                importError = importError,
+                onCancelDownload = onCancelDownload,
+                onCancelImport = onCancelImport,
             )
-
-            Spacer(Modifier.height(8.dp))
-
-            importSection(
-                progress = importProgress,
-                error = importError,
-                enabled = importPrompt == null && importProgress == null,
-                onImport = onImport,
-                onCancel = onCancelImport,
-            )
-
-            Spacer(Modifier.height(16.dp))
 
             statusSection(state, apiKey)
 
             Spacer(Modifier.height(16.dp))
 
-            batteryCard(exempt = batteryExempt, onFix = onFixBattery)
+            diagnostics(exempt = batteryExempt, onFix = onFixBattery)
 
-            Spacer(Modifier.height(24.dp))
+            Spacer(Modifier.height(96.dp))
+        }
+    }
 
-            val controls = controlsFor(state, hasSelection = selectedPath != null, onStart, onStop)
-            Button(
-                onClick = controls.onClick,
-                enabled = controls.enabled,
-                modifier = Modifier.fillMaxWidth(),
-            ) {
-                Text(controls.label)
-            }
+    if (sheetOpen) {
+        ModalBottomSheet(onDismissRequest = { sheetOpen = false }, sheetState = sheetState) {
+            ingestionSheet(
+                download = download,
+                importEnabled = importPrompt == null && importProgress == null,
+                onDownload = { request ->
+                    onDownload(request)
+                    closeSheet()
+                },
+                onImport = {
+                    closeSheet()
+                    onImport()
+                },
+            )
         }
     }
 
@@ -196,13 +225,207 @@ fun nodeScreen(
 }
 
 @Composable
-private fun batteryCard(exempt: Boolean, onFix: () -> Unit) {
-    val accent = if (exempt) batteryOkGreen else MaterialTheme.colorScheme.error
+private fun modelsHeader(onAdd: () -> Unit) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.SpaceBetween,
+    ) {
+        Text(stringResource(R.string.models), style = MaterialTheme.typography.titleMedium)
+        IconButton(onClick = onAdd) {
+            Icon(
+                painter = painterResource(R.drawable.ic_add),
+                contentDescription = stringResource(R.string.add_model),
+            )
+        }
+    }
+}
+
+@Composable
+private fun primaryActionFab(
+    state: NodeState,
+    hasSelection: Boolean,
+    onStart: () -> Unit,
+    onStop: () -> Unit,
+) {
+    val busy = state is NodeState.Starting || state is NodeState.Stopping
+    val running = state is NodeState.Running || state is NodeState.Idle
+    val enabled = when {
+        busy -> false
+        running -> true
+        else -> canLoad(state, hasSelection)
+    }
+
+    val containerColor =
+        if (enabled) {
+            MaterialTheme.colorScheme.primary
+        } else {
+            MaterialTheme.colorScheme.surfaceVariant
+        }
+    val contentColor =
+        if (enabled) {
+            MaterialTheme.colorScheme.onPrimary
+        } else {
+            MaterialTheme.colorScheme.onSurfaceVariant
+        }
+
+    ExtendedFloatingActionButton(
+        onClick = {
+            when {
+                busy -> Unit
+                running -> onStop()
+                else -> onStart()
+            }
+        },
+        containerColor = containerColor,
+        contentColor = contentColor,
+    ) {
+        when {
+            busy -> {
+                CircularProgressIndicator(
+                    modifier = Modifier.size(20.dp),
+                    strokeWidth = 2.dp,
+                    color = contentColor,
+                )
+                Spacer(Modifier.width(12.dp))
+                Text(
+                    stringResource(
+                        if (state is NodeState.Starting) R.string.starting_node
+                        else R.string.stopping_node
+                    )
+                )
+            }
+
+            running -> {
+                Icon(painter = painterResource(R.drawable.ic_stop), contentDescription = null)
+                Spacer(Modifier.width(12.dp))
+                Text(stringResource(R.string.stop_node))
+            }
+
+            else -> {
+                Icon(painter = painterResource(R.drawable.ic_play), contentDescription = null)
+                Spacer(Modifier.width(12.dp))
+                Text(stringResource(R.string.start_node))
+            }
+        }
+    }
+}
+
+@Composable
+private fun transfersSection(
+    download: DownloadStatus?,
+    downloadError: String?,
+    importProgress: DownloadStatus?,
+    importError: String?,
+    onCancelDownload: () -> Unit,
+    onCancelImport: () -> Unit,
+) {
+    if (download == null && downloadError == null && importProgress == null && importError == null) {
+        return
+    }
+
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        download?.let {
+            transferCard(
+                title = stringResource(R.string.downloading_model),
+                status = it,
+                onCancel = onCancelDownload,
+            )
+        }
+        downloadError?.let { errorText(it) }
+        importProgress?.let {
+            transferCard(
+                title = stringResource(R.string.importing_model),
+                status = it,
+                onCancel = onCancelImport,
+            )
+        }
+        importError?.let { errorText(it) }
+    }
+}
+
+@Composable
+private fun transferCard(title: String, status: DownloadStatus, onCancel: () -> Unit) {
+    Surface(
+        color = MaterialTheme.colorScheme.surfaceVariant,
+        shape = MaterialTheme.shapes.medium,
+        modifier = Modifier.fillMaxWidth(),
+    ) {
+        Column(Modifier.padding(16.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    text = title,
+                    style = MaterialTheme.typography.titleSmall,
+                    modifier = Modifier.weight(1f),
+                )
+                TextButton(onClick = onCancel) { Text(stringResource(R.string.cancel)) }
+            }
+            LinearProgressIndicator(progress = { status.fraction }, modifier = Modifier.fillMaxWidth())
+            Spacer(Modifier.height(4.dp))
+            Text(
+                text = status.fileName,
+                style = MaterialTheme.typography.bodySmall,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+            Text(status.label, style = MaterialTheme.typography.bodySmall)
+        }
+    }
+}
+
+@Composable
+private fun errorText(message: String) {
+    Text(
+        text = message,
+        color = MaterialTheme.colorScheme.error,
+        style = MaterialTheme.typography.bodySmall,
+    )
+}
+
+@Composable
+private fun diagnostics(exempt: Boolean, onFix: () -> Unit) {
+    if (exempt) {
+        batteryChip()
+    } else {
+        batteryWarningCard(onFix = onFix)
+    }
+}
+
+@Composable
+private fun batteryChip() {
+    Surface(color = batteryOkGreen.copy(alpha = 0.16f), shape = RoundedCornerShape(50)) {
+        Row(
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Box(
+                modifier = Modifier.size(18.dp).background(batteryOkGreen, CircleShape),
+                contentAlignment = Alignment.Center,
+            ) {
+                Text(
+                    text = "✓",
+                    color = Color(0xFF1B1B1B),
+                    style = MaterialTheme.typography.labelSmall,
+                )
+            }
+            Spacer(Modifier.width(8.dp))
+            Text(
+                text = stringResource(R.string.battery_optimization_off),
+                color = batteryOkGreen,
+                style = MaterialTheme.typography.labelLarge,
+            )
+        }
+    }
+}
+
+@Composable
+private fun batteryWarningCard(onFix: () -> Unit) {
+    val accent = MaterialTheme.colorScheme.error
 
     Surface(
         color = accent.copy(alpha = 0.16f),
         shape = RoundedCornerShape(16.dp),
-        modifier = Modifier.fillMaxWidth().clickable(enabled = !exempt, onClick = onFix),
+        modifier = Modifier.fillMaxWidth().clickable(onClick = onFix),
     ) {
         Row(modifier = Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
             Box(
@@ -210,7 +433,7 @@ private fun batteryCard(exempt: Boolean, onFix: () -> Unit) {
                 contentAlignment = Alignment.Center,
             ) {
                 Text(
-                    text = if (exempt) "✓" else "!",
+                    text = "!",
                     color = Color(0xFF1B1B1B),
                     style = MaterialTheme.typography.titleMedium,
                 )
@@ -220,17 +443,12 @@ private fun batteryCard(exempt: Boolean, onFix: () -> Unit) {
 
             Column {
                 Text(
-                    text = if (exempt) "Battery optimization off" else "Battery optimization on",
+                    text = stringResource(R.string.battery_optimization_on),
                     color = accent,
                     style = MaterialTheme.typography.titleMedium,
                 )
                 Text(
-                    text =
-                        if (exempt) {
-                            "The node can keep serving in the background"
-                        } else {
-                            "Tap to let the node keep serving in the background"
-                        },
+                    text = stringResource(R.string.battery_on_hint),
                     color = accent.copy(alpha = 0.8f),
                     style = MaterialTheme.typography.bodyMedium,
                 )
@@ -240,6 +458,71 @@ private fun batteryCard(exempt: Boolean, onFix: () -> Unit) {
 }
 
 private val batteryOkGreen = Color(0xFFB6F04A)
+
+@Composable
+private fun ingestionSheet(
+    download: DownloadStatus?,
+    importEnabled: Boolean,
+    onDownload: (DownloadRequest) -> Unit,
+    onImport: () -> Unit,
+) {
+    var input by rememberSaveable { mutableStateOf("") }
+    var validationError by remember { mutableStateOf<String?>(null) }
+    val invalidMessage = stringResource(R.string.invalid_model_url)
+
+    fun submit() {
+        val request = parseDownloadRequest(input)
+        if (request == null) {
+            validationError = invalidMessage
+        } else {
+            onDownload(request)
+        }
+    }
+
+    Column(
+        modifier = Modifier.fillMaxWidth().imePadding().padding(24.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp),
+    ) {
+        Text(stringResource(R.string.add_model), style = MaterialTheme.typography.titleLarge)
+
+        OutlinedTextField(
+            value = input,
+            onValueChange = {
+                input = it
+                validationError = null
+            },
+            label = { Text(stringResource(R.string.model_url)) },
+            placeholder = { Text(stringResource(R.string.model_url_hint)) },
+            singleLine = true,
+            isError = validationError != null,
+            supportingText = validationError?.let { message -> { Text(message) } },
+            enabled = download == null,
+            trailingIcon = {
+                IconButton(
+                    onClick = { submit() },
+                    enabled = input.isNotBlank() && download == null,
+                ) {
+                    Icon(
+                        painter = painterResource(R.drawable.ic_download),
+                        contentDescription = stringResource(R.string.download),
+                    )
+                }
+            },
+            keyboardOptions =
+                KeyboardOptions(keyboardType = KeyboardType.Uri, imeAction = ImeAction.Done),
+            keyboardActions = KeyboardActions(onDone = { submit() }),
+            modifier = Modifier.fillMaxWidth(),
+        )
+
+        OutlinedButton(
+            onClick = onImport,
+            enabled = importEnabled,
+            modifier = Modifier.fillMaxWidth(),
+        ) {
+            Text(stringResource(R.string.import_from_storage))
+        }
+    }
+}
 
 @Composable
 private fun modelList(
@@ -332,92 +615,6 @@ private fun deleteDialog(model: Model, onConfirm: () -> Unit, onDismiss: () -> U
     )
 }
 
-@Composable
-private fun downloadSection(
-    status: DownloadStatus?,
-    error: String?,
-    onDownload: (DownloadRequest) -> Unit,
-    onCancel: () -> Unit,
-) {
-    var input by rememberSaveable { mutableStateOf("") }
-    var validationError by remember { mutableStateOf<String?>(null) }
-
-    Column {
-        OutlinedTextField(
-            value = input,
-            onValueChange = {
-                input = it
-                validationError = null
-            },
-            label = { Text("Model URL") },
-            placeholder = { Text("https://huggingface.co/…/model.gguf") },
-            singleLine = true,
-            isError = validationError != null,
-            supportingText = validationError?.let { message -> { Text(message) } },
-            enabled = status == null,
-            modifier = Modifier.fillMaxWidth(),
-        )
-
-        Spacer(Modifier.height(8.dp))
-
-        if (status == null) {
-            Button(
-                onClick = {
-                    val request = parseDownloadRequest(input)
-                    if (request == null) {
-                        validationError = "Enter a direct link to a .gguf file"
-                    } else {
-                        onDownload(request)
-                    }
-                },
-                enabled = input.isNotBlank(),
-                modifier = Modifier.fillMaxWidth(),
-            ) {
-                Text("Download")
-            }
-        } else {
-            LinearProgressIndicator(
-                progress = { status.fraction },
-                modifier = Modifier.fillMaxWidth(),
-            )
-            Spacer(Modifier.height(4.dp))
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(
-                    text = status.fileName,
-                    style = MaterialTheme.typography.bodySmall,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.weight(1f),
-                )
-                TextButton(onClick = onCancel) { Text("Cancel") }
-            }
-            Text(status.label, style = MaterialTheme.typography.bodySmall)
-        }
-
-        error?.let {
-            Spacer(Modifier.height(4.dp))
-            Text(
-                text = it,
-                color = MaterialTheme.colorScheme.error,
-                style = MaterialTheme.typography.bodySmall,
-            )
-        }
-    }
-}
-
-data class DownloadStatus(val fileName: String, val downloaded: Long, val total: Long) {
-    val fraction: Float
-        get() = if (total > 0) (downloaded.toFloat() / total).coerceIn(0f, 1f) else 0f
-
-    val label: String
-        get() =
-            if (total > 0) {
-                "${(fraction * 100).toInt()}% · ${formatSize(downloaded)} / ${formatSize(total)}"
-            } else {
-                formatSize(downloaded)
-            }
-}
-
 /** Prompt shown while importing a picked file. */
 sealed interface ImportPrompt {
     val name: String
@@ -425,56 +622,6 @@ sealed interface ImportPrompt {
     data class Choose(override val name: String, val sizeBytes: Long) : ImportPrompt
 
     data class Grant(override val name: String) : ImportPrompt
-}
-
-@Composable
-private fun transferProgress(status: DownloadStatus, onCancel: () -> Unit) {
-    LinearProgressIndicator(progress = { status.fraction }, modifier = Modifier.fillMaxWidth())
-    Spacer(Modifier.height(4.dp))
-    Row(verticalAlignment = Alignment.CenterVertically) {
-        Text(
-            text = status.fileName,
-            style = MaterialTheme.typography.bodySmall,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-            modifier = Modifier.weight(1f),
-        )
-        TextButton(onClick = onCancel) { Text("Cancel") }
-    }
-    Text(status.label, style = MaterialTheme.typography.bodySmall)
-}
-
-@Composable
-private fun importSection(
-    progress: DownloadStatus?,
-    error: String?,
-    enabled: Boolean,
-    onImport: () -> Unit,
-    onCancel: () -> Unit,
-) {
-    Column {
-        OutlinedButton(
-            onClick = onImport,
-            enabled = enabled,
-            modifier = Modifier.fillMaxWidth(),
-        ) {
-            Text("Import file")
-        }
-
-        progress?.let {
-            Spacer(Modifier.height(8.dp))
-            transferProgress(it, onCancel)
-        }
-
-        error?.let {
-            Spacer(Modifier.height(4.dp))
-            Text(
-                text = it,
-                color = MaterialTheme.colorScheme.error,
-                style = MaterialTheme.typography.bodySmall,
-            )
-        }
-    }
 }
 
 @Composable
@@ -521,31 +668,6 @@ private fun grantAccessDialog(name: String, onOpenSettings: () -> Unit, onDismis
         dismissButton = { TextButton(onClick = onDismiss) { Text("Not now") } },
     )
 }
-
-private class Controls(val label: String, val enabled: Boolean, val onClick: () -> Unit)
-
-@Composable
-private fun controlsFor(
-    state: NodeState,
-    hasSelection: Boolean,
-    onStart: () -> Unit,
-    onStop: () -> Unit,
-): Controls =
-    when (state) {
-        is NodeState.Stopped ->
-            Controls(stringResource(R.string.start_node), canLoad(state, hasSelection), onStart)
-
-        is NodeState.Error ->
-            Controls(stringResource(R.string.retry_node), canLoad(state, hasSelection), onStart)
-
-        is NodeState.Starting -> Controls(stringResource(R.string.starting_node), false) {}
-
-        is NodeState.Stopping -> Controls(stringResource(R.string.stopping_node), false) {}
-
-        is NodeState.Idle -> Controls(stringResource(R.string.stop_node), true, onStop)
-
-        is NodeState.Running -> Controls(stringResource(R.string.stop_node), true, onStop)
-    }
 
 @Composable
 private fun statusSection(state: NodeState, apiKey: String) {
@@ -668,4 +790,17 @@ internal fun formatSize(bytes: Long): String {
     }
 
     return String.format(Locale.US, "%.1f %s", value, units[unit])
+}
+
+data class DownloadStatus(val fileName: String, val downloaded: Long, val total: Long) {
+    val fraction: Float
+        get() = if (total > 0) (downloaded.toFloat() / total).coerceIn(0f, 1f) else 0f
+
+    val label: String
+        get() =
+            if (total > 0) {
+                "${(fraction * 100).toInt()}% · ${formatSize(downloaded)} / ${formatSize(total)}"
+            } else {
+                formatSize(downloaded)
+            }
 }

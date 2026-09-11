@@ -8,6 +8,21 @@
     <string name="stopping_node">Stopping...</string>
     <string name="retry_node">Retry</string>
 
+    <string name="models">Models</string>
+    <string name="add_model">Add a model</string>
+    <string name="no_model_found">No model found. Push a GGUF to this phone:</string>
+    <string name="model_url">Model URL</string>
+    <string name="model_url_hint">https://…/model.gguf</string>
+    <string name="download">Download</string>
+    <string name="invalid_model_url">Enter a direct link to a .gguf file</string>
+    <string name="import_from_storage">Import from storage</string>
+    <string name="downloading_model">Downloading model</string>
+    <string name="importing_model">Importing model</string>
+    <string name="battery_optimization_off">Battery optimization off</string>
+    <string name="battery_optimization_on">Battery optimization on</string>
+    <string name="battery_off_hint">The node can keep serving in the background</string>
+    <string name="battery_on_hint">Tap to let the node keep serving in the background</string>
+
     <string name="channel_name">Mesh node</string>
     <string name="channel_description">Ongoing status of the on-device AI node (llama.cpp server +
         RPC mesh).</string>
