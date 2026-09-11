@@ -25,7 +25,10 @@
     <string name="channel_description">Ongoing status of the on-device AI node (llama.cpp server +
         RPC mesh).</string>
 
-    <string name="notif_running">Serving model: %1$s</string>
+    <string name="notif_running">Serving %1$s</string>
+    <string name="notif_starting">Starting %1$s...</string>
+    <string name="notif_stopping">Stopping %1$s...</string>
+    <string name="notif_error">Failed: %1$s</string>
     <string name="notif_waiting_model">Waiting for a .gguf model...</string>
 
     <string name="state_server_died">llama-server stopped responding.</string>

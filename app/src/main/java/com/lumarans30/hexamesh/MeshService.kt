@@ -72,7 +72,9 @@ class MeshService : Service() {
                     state is NodeState.Stopped ||
                             state is NodeState.Idle ||
                             state is NodeState.Error
-                if (foregroundActive && settled) hideForeground(stopSelf = true)
+                if (foregroundActive) {
+                    if (settled) hideForeground(stopSelf = true) else notifications.update(state)
+                }
             }
         }
     }
@@ -88,7 +90,7 @@ class MeshService : Service() {
         val requestedModelPath = intent?.getStringExtra(EXTRA_MODEL_PATH)
         val modelPath = requestedModelPath ?: models.selected()?.path
 
-        showForeground(modelPath)
+        showForeground(node.state.value)
 
         if (modelPath == null) {
             Log.w(TAG, "No .gguf model found. Skipping node start.")
@@ -110,10 +112,10 @@ class MeshService : Service() {
         super.onDestroy()
     }
 
-    private fun showForeground(modelPath: String?) {
+    private fun showForeground(state: NodeState) {
         startForeground(
             Notifications.NOTIFICATION_ID,
-            notifications.build(modelPath),
+            notifications.build(state),
             ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE,
         )
         foregroundActive = true
