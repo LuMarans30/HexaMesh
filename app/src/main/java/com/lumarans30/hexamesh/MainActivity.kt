@@ -6,6 +6,8 @@ import android.content.Intent
 import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
 import android.os.PowerManager
 import android.provider.Settings
 import androidx.activity.ComponentActivity
@@ -45,6 +47,7 @@ class MainActivity : ComponentActivity() {
 
     private lateinit var repository: ModelRepository
     private lateinit var workManager: WorkManager
+    private val batteryHandler = Handler(Looper.getMainLooper())
 
     private var available by mutableStateOf<List<Model>>(emptyList())
     private var selectedPath by mutableStateOf<String?>(null)
@@ -67,8 +70,6 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         repository = ModelRepository(this)
         workManager = WorkManager.getInstance(this)
-        // Drop finished transfers from a previous session so their terminal
-        // state (and any error message) can't resurface on launch.
         workManager.pruneWork()
         refreshModels()
         refreshBatteryStatus()
@@ -77,15 +78,15 @@ class MainActivity : ComponentActivity() {
             hexaMeshTheme {
                 val state by NodeState.current.collectAsState()
                 val downloadInfos by
-                    remember {
-                            workManager.getWorkInfosForUniqueWorkFlow(ModelDownloadWorker.WORK_NAME)
-                        }
-                        .collectAsState(emptyList())
+                remember {
+                    workManager.getWorkInfosForUniqueWorkFlow(ModelDownloadWorker.WORK_NAME)
+                }
+                    .collectAsState(emptyList())
                 val importInfos by
-                    remember {
-                            workManager.getWorkInfosForUniqueWorkFlow(ModelImportWorker.WORK_NAME)
-                        }
-                        .collectAsState(emptyList())
+                remember {
+                    workManager.getWorkInfosForUniqueWorkFlow(ModelImportWorker.WORK_NAME)
+                }
+                    .collectAsState(emptyList())
 
                 LaunchedEffect(downloadInfos) {
                     if (downloadInfos.any { it.state == WorkInfo.State.SUCCEEDED }) refreshModels()
@@ -150,7 +151,7 @@ class MainActivity : ComponentActivity() {
     override fun onResume() {
         super.onResume()
         refreshModels()
-        refreshBatteryStatus()
+        scheduleBatteryRefresh()
 
         if (awaitingGrant) {
             awaitingGrant = false
@@ -159,6 +160,16 @@ class MainActivity : ComponentActivity() {
                     ImportPrompt.Choose(it.name, it.sizeBytes)
             }
         }
+    }
+
+    override fun onWindowFocusChanged(hasFocus: Boolean) {
+        super.onWindowFocusChanged(hasFocus)
+        if (hasFocus) scheduleBatteryRefresh()
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        batteryHandler.removeCallbacksAndMessages(null)
     }
 
     private fun onPicked(uri: Uri) {
@@ -227,6 +238,18 @@ class MainActivity : ComponentActivity() {
 
     private fun refreshBatteryStatus() {
         batteryExempt = isIgnoringBatteryOptimizations()
+    }
+
+    /**
+     * The battery-optimization screen can commit the whitelist change a moment
+     * after we regain focus
+     */
+    private fun scheduleBatteryRefresh() {
+        batteryHandler.removeCallbacksAndMessages(null)
+        refreshBatteryStatus()
+        for (delay in BATTERY_REFRESH_RETRY_MS) {
+            batteryHandler.postDelayed({ refreshBatteryStatus() }, delay)
+        }
     }
 
     private fun refreshModels() {
@@ -314,10 +337,10 @@ class MainActivity : ComponentActivity() {
 
     companion object {
         private const val REQ_NOTIFICATIONS = 1001
+        private val BATTERY_REFRESH_RETRY_MS = longArrayOf(300, 900, 1800, 3000)
     }
 }
 
-/** Progress for a download or import that is queued or running. */
 private fun List<WorkInfo>.activeTransfer(): DownloadStatus? =
     firstOrNull { it.state == WorkInfo.State.RUNNING || it.state == WorkInfo.State.ENQUEUED }
         ?.let { info ->
