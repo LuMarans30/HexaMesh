@@ -1,13 +1,11 @@
 package com.lumarans30.hexamesh.ui
 
 import androidx.activity.compose.BackHandler
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -36,11 +34,11 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.lumarans30.hexamesh.R
 import com.lumarans30.hexamesh.logs.NodeMetrics
+import com.lumarans30.hexamesh.mesh.PeerNode
 import com.lumarans30.hexamesh.node.NodeState
 
 /**
@@ -53,6 +51,7 @@ fun hexaMeshApp(
     transferViewModel: TransferViewModel,
     settingsViewModel: SettingsViewModel,
     logsViewModel: LogsViewModel,
+    meshViewModel: MeshViewModel,
     batteryExempt: Boolean,
     onPickModel: () -> Unit,
     onOpenAllFilesSettings: () -> Unit,
@@ -64,6 +63,10 @@ fun hexaMeshApp(
     val launchArgs by settingsViewModel.launchArgs.collectAsStateWithLifecycle()
     val logLines by logsViewModel.lines.collectAsStateWithLifecycle()
     val nodeMetrics by logsViewModel.metrics.collectAsStateWithLifecycle()
+    val meshPeers by meshViewModel.peers.collectAsStateWithLifecycle()
+    val fallbackPeers by meshViewModel.fallbackPeers.collectAsStateWithLifecycle()
+    val meshDiscoverable by meshViewModel.discoverable.collectAsStateWithLifecycle()
+    val meshUsePeers by meshViewModel.usePeers.collectAsStateWithLifecycle()
 
     val state =
         ManagerUiState(
@@ -84,6 +87,7 @@ fun hexaMeshApp(
         remember(
             nodeViewModel,
             transferViewModel,
+            meshViewModel,
             onPickModel,
             onOpenAllFilesSettings,
             onFixBattery,
@@ -103,7 +107,12 @@ fun hexaMeshApp(
                     onOpenAllFilesSettings()
                 },
                 onGrantDismiss = transferViewModel::onGrantDismiss,
-                onStart = { nodeViewModel.start(transferViewModel.uiState.value.selectedPath) },
+                onStart = {
+                    nodeViewModel.start(
+                        transferViewModel.uiState.value.selectedPath,
+                        meshViewModel.rpcEndpoints(),
+                    )
+                },
                 onStop = nodeViewModel::stop,
                 onFixBattery = onFixBattery,
             )
@@ -117,6 +126,14 @@ fun hexaMeshApp(
         logLines = logLines,
         nodeMetrics = nodeMetrics,
         observeLogs = logsViewModel::observe,
+        meshPeers = meshPeers,
+        fallbackPeers = fallbackPeers,
+        meshDiscoverable = meshDiscoverable,
+        meshUsePeers = meshUsePeers,
+        onApplyFallbackPeers = meshViewModel::applyFallbackPeers,
+        onMeshDiscoverableChange = meshViewModel::setDiscoverable,
+        onMeshUsePeersChange = meshViewModel::setUsePeers,
+        observePeers = meshViewModel::observe,
         modifier = modifier,
     )
 }
@@ -135,6 +152,14 @@ private fun hexaMeshShell(
     logLines: List<String>,
     nodeMetrics: NodeMetrics,
     observeLogs: suspend () -> Unit,
+    meshPeers: List<PeerNode>,
+    fallbackPeers: String,
+    meshDiscoverable: Boolean,
+    meshUsePeers: Boolean,
+    onApplyFallbackPeers: (String) -> Unit,
+    onMeshDiscoverableChange: (Boolean) -> Unit,
+    onMeshUsePeersChange: (Boolean) -> Unit,
+    observePeers: suspend () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     var tab by rememberSaveable { mutableStateOf(HexaTab.Manage) }
@@ -179,9 +204,15 @@ private fun hexaMeshShell(
                 HexaTab.Manage -> nodeScreen(state, actions, Modifier.padding(innerPadding))
 
                 HexaTab.Mesh ->
-                    placeholderTab(
-                        title = stringResource(R.string.mesh_placeholder_title),
-                        body = stringResource(R.string.mesh_placeholder_body),
+                    meshScreen(
+                        peers = meshPeers,
+                        fallbackPeers = fallbackPeers,
+                        discoverable = meshDiscoverable,
+                        usePeers = meshUsePeers,
+                        onDiscoverableChange = onMeshDiscoverableChange,
+                        onUsePeersChange = onMeshUsePeersChange,
+                        onApplyFallback = onApplyFallbackPeers,
+                        observe = observePeers,
                         modifier = Modifier.padding(innerPadding),
                     )
 
@@ -283,25 +314,6 @@ private fun tabBar(selected: HexaTab, onSelect: (HexaTab) -> Unit) {
                     )
                 },
                 label = { Text(stringResource(tab.labelRes)) },
-            )
-        }
-    }
-}
-
-@Composable
-private fun placeholderTab(title: String, body: String, modifier: Modifier = Modifier) {
-    Box(
-        modifier = modifier.fillMaxSize().padding(32.dp),
-        contentAlignment = Alignment.Center,
-    ) {
-        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            Text(title, style = MaterialTheme.typography.titleLarge)
-            Spacer(Modifier.height(8.dp))
-            Text(
-                text = body,
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                textAlign = TextAlign.Center,
             )
         }
     }
