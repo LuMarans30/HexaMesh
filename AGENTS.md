@@ -22,7 +22,7 @@ HexaMesh runs llama.cpp's `llama-server` inside an Android foreground service
 and exposes an OpenAI-compatible HTTP API on the LAN. A Rust supervisor spawns
 and watches the server over JNI.
 
-- Release `0.8.0` (`versionCode 7`); the server defaults to **8080** and the port
+- Release `0.9.0` (`versionCode 8`); the server defaults to **8080** and the port
   is editable through the launch args.
 - Backends: Adreno GPU (OpenCL) today; the Hexagon NPU path is **experimental
   and produces corrupted output**.
