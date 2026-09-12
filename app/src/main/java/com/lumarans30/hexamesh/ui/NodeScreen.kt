@@ -561,7 +561,7 @@ private fun statusHero(
             statusCard(
                 accent = MaterialTheme.colorScheme.onSurfaceVariant,
                 title = "Node stopped",
-                subtitle = "Tap Start Node to serve every model.",
+                subtitle = "Tap Start Node to start the server.",
                 symbol = "○",
             )
         }
