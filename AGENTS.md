@@ -9,9 +9,11 @@ here is stale, fix it; do not leave dead plans behind.
   changes for the human to review. No `git add` / `commit` / `amend` / `push`
   unless explicitly asked.
 - **Small and reviewable.** Prefer focused changes over sweeping rewrites.
-- **You may install and screenshot.** Put the debug build on a connected device
-  with `./gradlew :app:installDebug -PskipRustBuild` and capture the UI while
-  debugging with `adb exec-out screencap -p > /tmp/hexamesh.png`.
+- **You may install and screenshot.** Build with
+  `./gradlew :app:assembleDebug -PskipRustBuild`, then put it on a connected
+  device with `adb install -r app/build/outputs/apk/debug/app-debug.apk` —
+  `:app:installDebug` fails on some OEMs with `INSTALL_FAILED_USER_RESTRICTED`.
+  Capture the UI while debugging with `adb exec-out screencap -p > /tmp/hexamesh.png`.
 - **Never uninstall or clear app data.** `adb uninstall com.lumarans30.hexamesh`
   and `adb shell pm clear com.lumarans30.hexamesh` wipe internal storage and
   destroy the user's imported models. Reinstall in place instead.
@@ -26,8 +28,9 @@ and watches the server over JNI.
   is editable through the launch args.
 - Backends: Adreno GPU (OpenCL) today; the Hexagon NPU path is **experimental
   and produces corrupted output**.
-- **RPC mesh is partly built:** `scripts/enable_rpc.py` forces `GGML_RPC=ON` in
-  the Snapdragon build (run by `build_llama.sh` and CI), so `pkg-adb` ships
+- **RPC mesh is partly built:** `scripts/enable_features.py` forces `GGML_RPC=ON`
+  (plus `LLAMA_SUBPROCESS=ON` for router mode) in the Snapdragon build (run by
+  `build_llama.sh` and CI), so `pkg-adb` ships
   `ggml-rpc-server` (bundled as `libggmlrpcserver.so`) and a `llama-server` that
   accepts `--rpc`. The Rust supervisor runs either role, the pure mesh domain
   lives in `mesh/`, and the Mesh tab advertises/browses `_hexamesh._tcp` (NSD),
@@ -49,11 +52,15 @@ and watches the server over JNI.
 - `llama.cpp/` is an ignored, unpinned checkout at upstream `master` (excluded
   from editor search); its `AGENTS.md` is unrelated to this project. `build_llama.sh`
   and CI always pull the tip, so the build is not reproducible across dates.
-- **RPC build:** the Snapdragon preset ships `GGML_RPC=OFF`; `scripts/enable_rpc.py`
-  patches the generated `llama.cpp/CMakeUserPresets.json` to turn it on.
-  `build_llama.sh` runs it after pulling and CI runs it before `build.py`. The
-  app bundles `bin/ggml-rpc-server` as `libggmlrpcserver.so`; `lib/*.so`
-  (including `libggml-rpc.so`) is copied automatically.
+- **Feature build flags:** the Snapdragon preset ships `GGML_RPC=OFF` and
+  `LLAMA_SUBPROCESS=OFF` — upstream disables the latter on Android as
+  "sandbox-unfriendly". `scripts/enable_features.py` patches the generated
+  `llama.cpp/CMakeUserPresets.json` to turn both on; `build_llama.sh` runs it
+  after pulling and CI runs it before `build.py`. The app bundles
+  `bin/ggml-rpc-server` as `libggmlrpcserver.so`; `lib/*.so` (including
+  `libggml-rpc.so`) is copied automatically. Router mode **requires**
+  `LLAMA_SUBPROCESS=ON`: without it the server starts, then exits with
+  "subprocess is not enabled on this build".
 - CI (`.github/workflows/build.yml`) builds the APK, uploads artifacts, and
   releases on `v*` tags.
 - **Definition of done:** `testDebugUnitTest` green and `assembleDebug`
@@ -90,7 +97,7 @@ reason.
 | 2.5 | Custom launch args: editable defaults, locked required flags | ✅ landed |
 | 3 | Logs tab (local diagnostics only) | ✅ landed |
 | 4 | Mesh tab + per-peer logs | 🚧 coordinator offloads to peers; worker role + logs pending |
-| 5 | Router mode + HF cache (one listener, many models) | 🚧 router launch + `LLAMA_CACHE` landed; reload endpoint + id-based models pending |
+| 5 | Router mode + HF cache (one listener, many models) | 🚧 router + `LLAMA_CACHE` landed and device-verified; reload endpoint + id-based models pending |
 
 Phase notes (the load-bearing bits):
 
@@ -113,8 +120,8 @@ Phase notes (the load-bearing bits):
   `/proc/meminfo` (the server's own RSS excludes GPU-offloaded weights, so it is
   not a useful number). Terminal view is a `LazyColumn` over a ~2000-line capped
   buffer. Per-peer logs are out of scope here.
-- **4 —** the RPC backend is built and bundled: `scripts/enable_rpc.py` forces
-  `GGML_RPC=ON`, `ggml-rpc-server` ships as `libggmlrpcserver.so`, and the
+- **4 —** the RPC backend is built and bundled: `scripts/enable_features.py`
+  forces `GGML_RPC=ON`, `ggml-rpc-server` ships as `libggmlrpcserver.so`, and the
   supervisor runs either role (`ServerRole.SERVER`/`RPC`, with a TCP liveness
   probe and a separate `rpc-server.log`). Discovery and meshing hand-off landed:
   `NsdDiscovery` browses `_hexamesh._tcp`, `NsdAdvertiser` publishes this device
@@ -149,11 +156,15 @@ Phase notes (the load-bearing bits):
   a `router` flag so the UI/notification show "all models" instead of a file
   name. Shutdown now signals the child's **process group** (`kill(-pid)`, valid
   because `command.rs` `setsid`s the child and router-spawned instances inherit
-  that group), so model grandchildren can no longer orphan a SIGKILL'd router.
+  that group), so model grandchildren can no longer orphan a SIGKILLed router.
   Still open: download ownership (`POST /models` vs `ModelDownloadWorker`);
   `SlotsClient` needs `?model=`, and nothing calls `/models?reload=1` or
   `/models/load`, so imports need a restart; HF ids clash with the path-based
-  `Model`/repository.
+  `Model`/repository. **Verified on device** (Poco F7/Adreno, `LLAMA_SUBPROCESS=ON`):
+  the router lists both models from the app's `models/` dir (a loose
+  `mmproj-*.gguf` is ignored), `/v1/models` reports them `unloaded`, an on-demand
+  chat loads a second `libllamaserver.so` (topology app → router → instance) and
+  returns a completion, and Stop takes the whole group down cleanly.
 
 ## Gotchas
 
