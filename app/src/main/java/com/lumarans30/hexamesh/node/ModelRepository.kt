@@ -7,8 +7,11 @@ class ModelRepository(context: Context) {
     private val app = context.applicationContext
     private val prefs = app.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
     private val dir: File = File(app.getExternalFilesDir(null), "models").apply { mkdirs() }
+    private val hfCache: File = File(app.getExternalFilesDir(null), "hf-cache").apply { mkdirs() }
 
     fun modelsDir(): File = dir
+
+    fun hfCacheDir(): File = hfCache
 
     fun list(): List<Model> =
         dir.listFiles()

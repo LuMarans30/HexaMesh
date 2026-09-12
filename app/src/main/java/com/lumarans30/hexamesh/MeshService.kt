@@ -57,6 +57,7 @@ class MeshService : Service() {
             NodeEnvironment(
                 nativeLibDir = applicationInfo.nativeLibraryDir,
                 cacheDir = cacheDir.absolutePath,
+                llamaCacheDir = models.hfCacheDir().absolutePath,
                 apiKey = ApiKeyManager.getOrCreateApiKey(this),
                 serverDiedMessage = getString(R.string.state_server_died),
                 locks = LockManager(this),

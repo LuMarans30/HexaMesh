@@ -72,6 +72,7 @@ fn base_command(exe: &Path, config: &ServerConfig) -> Command {
     let ServerConfig {
         lib_dir,
         cache_dir,
+        llama_cache_dir,
         backend,
         ..
     } = config;
@@ -99,6 +100,13 @@ fn base_command(exe: &Path, config: &ServerConfig) -> Command {
 
     let _ = fs::create_dir_all(&cl_cache_dir);
     let _ = fs::create_dir_all(&work_dir);
+
+    // Android has no usable $HOME, so pin llama.cpp's cache (Hugging Face hub and
+    // the general file cache both read `LLAMA_CACHE`) to an app-owned directory.
+    if !llama_cache_dir.is_empty() {
+        let _ = fs::create_dir_all(llama_cache_dir);
+        cmd.env("LLAMA_CACHE", llama_cache_dir);
+    }
 
     match backend.to_lowercase().as_str() {
         "gpu" | "opencl" => {

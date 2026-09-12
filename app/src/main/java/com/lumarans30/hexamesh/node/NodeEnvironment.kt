@@ -9,6 +9,7 @@ import com.lumarans30.hexamesh.platform.Locks
 data class NodeEnvironment(
     val nativeLibDir: String,
     val cacheDir: String,
+    val llamaCacheDir: String,
     val apiKey: String,
     val serverDiedMessage: String,
     val locks: Locks,

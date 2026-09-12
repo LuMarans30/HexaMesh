@@ -73,6 +73,7 @@ class NodeController(
                         modelPath = modelPath,
                         nativeLibDir = env.nativeLibDir,
                         cacheDir = env.cacheDir,
+                        llamaCacheDir = env.llamaCacheDir,
                         port = port,
                         backend = BACKEND,
                         apiKey = env.apiKey,

@@ -9,6 +9,8 @@ pub struct ServerConfig {
     pub model_path: String,
     pub lib_dir: String,
     pub cache_dir: String,
+    /// Root for llama.cpp's Hugging Face cache (`LLAMA_CACHE`); empty to leave it unset.
+    pub llama_cache_dir: String,
     pub port: i32,
     pub backend: String,
     pub api_key: String,
@@ -46,6 +48,7 @@ impl ServerConfig {
             model_path: get_str("modelPath")?,
             lib_dir: get_str("nativeLibDir")?,
             cache_dir: get_str("cacheDir")?,
+            llama_cache_dir: get_str("llamaCacheDir")?,
             backend: get_str("backend")?,
             api_key: get_str("apiKey")?,
             port: env

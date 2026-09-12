@@ -10,6 +10,8 @@ data class ServerConfig(
     @JvmField val modelPath: String,
     @JvmField val nativeLibDir: String,
     @JvmField val cacheDir: String,
+    /** Root for llama.cpp's Hugging Face cache; empty leaves `LLAMA_CACHE` unset. */
+    @JvmField val llamaCacheDir: String = "",
     @JvmField val port: Int,
     @JvmField val backend: String,
     @JvmField val apiKey: String? = null,

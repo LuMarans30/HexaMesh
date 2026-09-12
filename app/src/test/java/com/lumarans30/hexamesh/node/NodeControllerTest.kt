@@ -35,6 +35,7 @@ class NodeControllerTest {
                 NodeEnvironment(
                     nativeLibDir = "/lib",
                     cacheDir = "/cache",
+                    llamaCacheDir = "/cache/hf",
                     apiKey = "key",
                     serverDiedMessage = "server died",
                     locks = locks,
@@ -78,6 +79,7 @@ class NodeControllerTest {
         assertEquals(MODEL, config.modelPath)
         assertEquals("/lib", config.nativeLibDir)
         assertEquals("/cache", config.cacheDir)
+        assertEquals("/cache/hf", config.llamaCacheDir)
         assertEquals("key", config.apiKey)
         assertEquals(8080, config.port)
 
