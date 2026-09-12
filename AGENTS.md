@@ -36,8 +36,7 @@ and watches the server over JNI.
   lives in `mesh/`, and the Mesh tab advertises/browses `_hexamesh._tcp` (NSD),
   pings peers for latency, and hands the reachable ones to a starting node as
   `--rpc` (verified offloading to a PC `ggml-rpc-server`). **Not built yet:** the
-  worker role is not selectable from the UI, `planLayers`/`--tensor-split` is
-  unused, and per-peer logs are missing.
+  worker role is not selectable from the UI and per-peer logs are missing.
 
 ## Build & verify
 
@@ -131,9 +130,8 @@ Phase notes (the load-bearing bits):
   carries the endpoints through `MeshService` → `ServerConfig.rpcServers` → Rust
   `--rpc`. Verified over the LAN against a PC `ggml-rpc-server`: the peer's GPU
   took the weights and served generation. **Next:** a worker-role toggle so this
-  phone can run `ggml-rpc-server`, `--tensor-split` from `planLayers`, then the
-  Canvas view and per-peer logs. Prefer one merged, timestamped, peer-filterable
-  log stream.
+  phone can run `ggml-rpc-server`, then the Canvas view and per-peer logs. Prefer
+  one merged, timestamped, peer-filterable log stream.
 - **5 —** one listener, many models. `llama-server` **without `-m`** is a
   *router*: it spawns one child per model on a loopback port and proxies the
   public port, exposing `GET/POST /models`, `/models/load`, `/models/unload`,
@@ -200,8 +198,8 @@ Phase notes (the load-bearing bits):
 
 - The worker role is still unreachable: `ServerRole.RPC` exists and the bundled
   `ggml-rpc-server` runs, but nothing in the UI starts it.
-- `planLayers` has no caller, so no `--tensor-split`; llama.cpp splits the model
-  across the local device and the `--rpc` peers on its own.
+- No `--tensor-split`: llama.cpp splits the model across the local device and
+  the `--rpc` peers on its own.
 - The latency probe opens a TCP connection to the peer's RPC port, which is a
   single-client server; while llama.cpp holds the connection a probe only lands
   in the accept backlog. It has not disturbed a clean session, but a dedicated

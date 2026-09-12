@@ -88,15 +88,4 @@ class LaunchArgsTest {
         assertNull(parseLaunchPort(parseLaunchArgs("--port 80")))
         assertNull(parseLaunchPort(parseLaunchArgs("--port abc")))
     }
-
-    @Test
-    fun `withPort rewrites an existing port`() {
-        assertEquals("--port 9090 -t 6", withPort("--port 8080 -t 6", 9090))
-        assertEquals("--port=9090 -t 6", withPort("--port=8080 -t 6", 9090))
-    }
-
-    @Test
-    fun `withPort adds a port when none is present`() {
-        assertEquals("--port 9090 -t 6", withPort("-t 6", 9090))
-    }
 }

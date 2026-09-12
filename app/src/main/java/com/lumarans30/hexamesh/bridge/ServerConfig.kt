@@ -7,7 +7,6 @@ object ServerRole {
 }
 
 data class ServerConfig(
-    @JvmField val modelPath: String,
     @JvmField val nativeLibDir: String,
     @JvmField val cacheDir: String,
     /** Root for llama.cpp's Hugging Face cache; empty leaves `LLAMA_CACHE` unset. */
@@ -21,6 +20,6 @@ data class ServerConfig(
     @JvmField val role: String = ServerRole.SERVER,
     /** Comma-joined `host:port` peers for llama-server's `--rpc`, empty when solo. */
     @JvmField val rpcServers: String = "",
-    /** GGUF directory for router mode (`--models-dir`); empty selects single-model `-m`. */
+    /** GGUF directory the router serves (`--models-dir`). */
     @JvmField val modelsDir: String = "",
 )

@@ -64,7 +64,6 @@ class NodeControllerTest {
         assertEquals(1, locks.acquires)
 
         val config = engine.started.single()
-        assertEquals("", config.modelPath)
         assertEquals("/models", config.modelsDir)
         assertEquals("/lib", config.nativeLibDir)
         assertEquals("/cache", config.cacheDir)

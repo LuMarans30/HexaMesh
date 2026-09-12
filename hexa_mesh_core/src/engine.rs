@@ -86,16 +86,10 @@ impl Supervisor {
         label: &'static str,
         probe: Probe,
     ) -> Result<Self, String> {
-        // Router mode has no single `-m`; llama-server loads models from
-        // `--models-dir` on demand, so there is no model path to validate.
-        let router = !config.models_dir.is_empty();
-        let needs_model = !config.is_rpc() && !router;
-        if !exe.exists() || (needs_model && !Path::new(&config.model_path).exists()) {
-            return Err(format!(
-                "Pre-conditions failed (missing binary or model). exe={}, model={}",
-                exe.display(),
-                config.model_path
-            ));
+        // The node always runs in router mode; models load from `--models-dir`
+        // on demand, so there is no single model path to validate.
+        if !exe.exists() {
+            return Err(format!("Server binary not found at {}", exe.display()));
         }
 
         let port = u16::try_from(config.port)
@@ -123,7 +117,7 @@ impl Supervisor {
         info!("{} running with PID: {pid}", self.label);
 
         if let Some(stderr) = self.child.stderr.take() {
-            self.spawn_pump(stderr, log::Level::Info, "");
+            self.spawn_pump(stderr);
         }
 
         self.spawn_health_probe();
@@ -186,12 +180,7 @@ impl Supervisor {
         let _ = self.child.wait();
     }
 
-    fn spawn_pump<R: Read + Send + 'static>(
-        &self,
-        pipe: R,
-        level: log::Level,
-        prefix: &'static str,
-    ) {
+    fn spawn_pump<R: Read + Send + 'static>(&self, pipe: R) {
         let file = self.log_writer.clone();
         thread::spawn(move || {
             let mut reader = BufReader::new(pipe);
@@ -200,11 +189,11 @@ impl Supervisor {
             while reader.read_line(&mut line).unwrap_or(0) > 0 {
                 let trimmed = line.trim_end();
                 if !trimmed.is_empty() {
-                    log::log!(target: SERVER_TAG, level, "{prefix}{trimmed}");
+                    log::info!(target: SERVER_TAG, "{trimmed}");
 
                     if let Some(f) = &file {
                         let mut guard = f.lock().unwrap_or_else(|e| e.into_inner());
-                        let _ = writeln!(guard, "{prefix}{trimmed}");
+                        let _ = writeln!(guard, "{trimmed}");
                     }
                 }
                 line.clear();

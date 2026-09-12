@@ -62,7 +62,6 @@ class NodeController(
             try {
                 engine.start(
                     ServerConfig(
-                        modelPath = "",
                         nativeLibDir = env.nativeLibDir,
                         cacheDir = env.cacheDir,
                         llamaCacheDir = env.llamaCacheDir,

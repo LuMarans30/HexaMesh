@@ -62,20 +62,6 @@ fun parseLaunchPort(args: List<String>): Int? {
     return port
 }
 
-/** Rewrites the port in [text], adding a `--port` pair when none is present. */
-fun withPort(text: String, port: Int): String {
-    val tokens = parseLaunchArgs(text).toMutableList()
-    val index = tokens.indexOfLast { it == "--port" || it.startsWith("--port=") }
-    if (index < 0) return (listOf("--port", port.toString()) + tokens).joinToString(" ")
-
-    if (tokens[index] == "--port" && index + 1 < tokens.size) {
-        tokens[index + 1] = port.toString()
-    } else {
-        tokens[index] = "--port=$port"
-    }
-    return tokens.joinToString(" ")
-}
-
 /**
  * The single model the launch args pin, for the node notification when the node
  * is not in router mode. Prefers `--alias` (the name the API serves), else the

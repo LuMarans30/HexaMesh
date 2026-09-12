@@ -6,7 +6,6 @@
     <string name="start_node">Start Node</string>
     <string name="starting_node">Starting...</string>
     <string name="stopping_node">Stopping...</string>
-    <string name="retry_node">Retry</string>
 
     <string name="models">Models</string>
     <string name="add_model">Add a model</string>

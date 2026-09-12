@@ -6,9 +6,7 @@ use jni::{
 
 #[derive(Debug, Clone)]
 pub struct ServerConfig {
-    pub model_path: String,
-    /// Directory of GGUF models for router mode (`--models-dir`); empty selects
-    /// single-model mode, where `model_path` is passed as `-m`.
+    /// Directory of GGUF models the router serves (`--models-dir`).
     pub models_dir: String,
     pub lib_dir: String,
     pub cache_dir: String,
@@ -48,7 +46,6 @@ impl ServerConfig {
         let rpc_servers = get_str("rpcServers")?;
 
         Ok(Self {
-            model_path: get_str("modelPath")?,
             models_dir: get_str("modelsDir")?,
             lib_dir: get_str("nativeLibDir")?,
             cache_dir: get_str("cacheDir")?,

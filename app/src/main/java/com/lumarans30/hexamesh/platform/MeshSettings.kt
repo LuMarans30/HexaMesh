@@ -23,11 +23,8 @@ class MeshSettings(private val store: SettingsStore) {
     private val _usePeers = MutableStateFlow(isUsePeers())
     val usePeersFlow: StateFlow<Boolean> = _usePeers.asStateFlow()
 
-    val fallbackPeersText: String
-        get() = store.getString(KEY_FALLBACK_PEERS, "")
-
     fun setFallbackPeers(text: String) {
-        if (text == fallbackPeersText) return
+        if (text == store.getString(KEY_FALLBACK_PEERS, "")) return
 
         store.putString(KEY_FALLBACK_PEERS, text)
         _fallbackPeers.value = text

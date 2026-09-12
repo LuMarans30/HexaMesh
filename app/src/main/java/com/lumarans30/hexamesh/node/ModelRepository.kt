@@ -21,9 +21,9 @@ class ModelRepository(context: Context) {
             ?.toList()
             .orEmpty()
 
-    fun delete(model: Model): Boolean =
+    fun delete(model: Model) {
         runCatching { !File(model.path).exists() || File(model.path).delete() }
-            .getOrDefault(false)
+    }
 
     fun adbPushHint(): String = "adb push model.gguf ${dir.absolutePath}/"
 }
