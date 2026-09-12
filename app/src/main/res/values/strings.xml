@@ -60,9 +60,6 @@
     <string name="metric_temp">temp</string>
     <string name="metric_free_mem">free mem</string>
     <string name="launch_arguments">Launch arguments</string>
-    <string name="launch_arguments_hint">Flags passed to llama-server, including the port
-        (--port, default 8080). The model path, host, API key and device are managed by the app.
-        A change takes effect the next time the node starts.</string>
     <string name="arguments">Arguments</string>
     <string name="managed_flags_ignored">Managed by the app and ignored: %1$s</string>
     <string name="apply">Apply</string>

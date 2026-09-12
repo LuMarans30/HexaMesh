@@ -71,13 +71,6 @@ fun settingsScreen(
                 stringResource(R.string.launch_arguments),
                 style = MaterialTheme.typography.titleMedium,
             )
-            Spacer(Modifier.height(4.dp))
-            Text(
-                text = stringResource(R.string.launch_arguments_hint),
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-
             Spacer(Modifier.height(16.dp))
             OutlinedTextField(
                 value = argsText,
