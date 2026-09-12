@@ -32,6 +32,33 @@ class LaunchArgsTest {
     }
 
     @Test
+    fun `served model label is null for the default router`() {
+        assertNull(servedModelLabel(parseLaunchArgs("--port 8080 --slots -ngl 99")))
+    }
+
+    @Test
+    fun `served model label is the pinned file name`() {
+        assertEquals(
+            "Qwen3.5-0.8B-Q8_0.gguf",
+            servedModelLabel(parseLaunchArgs("-m /models/Qwen3.5-0.8B-Q8_0.gguf")),
+        )
+        assertEquals("a.gguf", servedModelLabel(parseLaunchArgs("--model=/models/a.gguf")))
+    }
+
+    @Test
+    fun `served model label prefers an alias`() {
+        assertEquals(
+            "my-model",
+            servedModelLabel(parseLaunchArgs("-m /models/a.gguf --alias my-model")),
+        )
+    }
+
+    @Test
+    fun `served model label falls back to the hf repo`() {
+        assertEquals("org/repo:Q4_K_M", servedModelLabel(parseLaunchArgs("-hf org/repo:Q4_K_M")))
+    }
+
+    @Test
     fun `the port is not a locked flag`() {
         assertEquals(listOf("--port", "9090"), effectiveLaunchArgs("--port 9090"))
     }

@@ -15,6 +15,7 @@ import com.lumarans30.hexamesh.platform.ApiKeyManager
 import com.lumarans30.hexamesh.platform.LockManager
 import com.lumarans30.hexamesh.platform.Notifications
 import com.lumarans30.hexamesh.platform.ServerSettings
+import com.lumarans30.hexamesh.platform.servedModelLabel
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -75,7 +76,8 @@ class MeshService : Service() {
                 val settled =
                     state is NodeState.Stopped || state is NodeState.Error
                 if (foregroundActive) {
-                    if (settled) hideForeground(stopSelf = true) else notifications.update(state)
+                    if (settled) hideForeground(stopSelf = true)
+                    else notifications.update(state, modelLabel())
                 }
             }
         }
@@ -107,11 +109,13 @@ class MeshService : Service() {
     private fun showForeground(state: NodeState) {
         startForeground(
             Notifications.NOTIFICATION_ID,
-            notifications.build(state),
+            notifications.build(state, modelLabel()),
             ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE,
         )
         foregroundActive = true
     }
+
+    private fun modelLabel(): String? = servedModelLabel(settings.launchArgs)
 
     private fun hideForeground(stopSelf: Boolean) {
         if (foregroundActive) {

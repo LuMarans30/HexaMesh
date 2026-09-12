@@ -30,7 +30,7 @@ class Notifications(context: Context) {
         manager.createNotificationChannel(channel)
     }
 
-    fun build(state: NodeState): Notification {
+    fun build(state: NodeState, modelLabel: String?): Notification {
         val openIntent =
             PendingIntent.getActivity(
                 app,
@@ -51,7 +51,7 @@ class Notifications(context: Context) {
             Notification.Builder(app, CHANNEL_ID)
                 .setSmallIcon(R.drawable.ic_stat_hexagon)
                 .setContentTitle(app.getString(R.string.app_name))
-                .setContentText(contentText(state))
+                .setContentText(contentText(state, modelLabel))
                 .setContentIntent(openIntent)
                 .addAction(
                     Notification.Action.Builder(
@@ -70,15 +70,27 @@ class Notifications(context: Context) {
         return builder.build()
     }
 
-    fun update(state: NodeState) {
-        manager.notify(NOTIFICATION_ID, build(state))
+    fun update(state: NodeState, modelLabel: String?) {
+        manager.notify(NOTIFICATION_ID, build(state, modelLabel))
     }
 
-    private fun contentText(state: NodeState): String =
+    private fun contentText(state: NodeState, modelLabel: String?): String =
         when (state) {
-            is NodeState.Starting -> app.getString(R.string.notif_starting)
-            is NodeState.Running -> app.getString(R.string.notif_running)
-            is NodeState.Stopping -> app.getString(R.string.notif_stopping)
+            is NodeState.Starting ->
+                app.getString(
+                    R.string.notif_starting,
+                    modelLabel ?: app.getString(R.string.notif_server),
+                )
+            is NodeState.Running ->
+                app.getString(
+                    R.string.notif_running,
+                    modelLabel ?: app.getString(R.string.notif_all_models),
+                )
+            is NodeState.Stopping ->
+                app.getString(
+                    R.string.notif_stopping,
+                    modelLabel ?: app.getString(R.string.notif_server),
+                )
             is NodeState.Error -> app.getString(R.string.notif_error, state.message)
             is NodeState.Stopped -> app.getString(R.string.notif_stopped)
         }

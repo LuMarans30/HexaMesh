@@ -1,5 +1,7 @@
 package com.lumarans30.hexamesh.platform
 
+import java.io.File
+
 /**
  * Flags the app always injects (host, API key, device, RPC peers, models
  * directory). Anything the user types matching one of these is stripped so the
@@ -72,4 +74,32 @@ fun withPort(text: String, port: Int): String {
         tokens[index] = "--port=$port"
     }
     return tokens.joinToString(" ")
+}
+
+/**
+ * The single model the launch args pin, for the node notification when the node
+ * is not in router mode. Prefers `--alias` (the name the API serves), else the
+ * `-m`/`--model` filename, else the `-hf` repo. `null` means the router serves
+ * every model.
+ */
+internal fun servedModelLabel(args: List<String>): String? {
+    val model = flagValue(args, "--model") ?: flagValue(args, "-m")
+    val repo = flagValue(args, "--hf-repo") ?: flagValue(args, "-hf")
+    if (model.isNullOrEmpty() && repo.isNullOrEmpty()) return null
+
+    val alias = flagValue(args, "--alias")
+    if (!alias.isNullOrEmpty()) return alias
+
+    return model?.takeIf { it.isNotEmpty() }?.let { File(it).name } ?: repo
+}
+
+/** Value of [flag] written as `flag value` or `flag=value`; null when absent. */
+private fun flagValue(args: List<String>, flag: String): String? {
+    args.forEachIndexed { i, token ->
+        when {
+            token == flag -> return args.getOrNull(i + 1)
+            token.startsWith("$flag=") -> return token.substringAfter('=')
+        }
+    }
+    return null
 }
