@@ -8,10 +8,7 @@ fun parseDecodedTokens(slotsJson: String): Int? {
     return decoded.sum().takeIf { decoded.isNotEmpty() }
 }
 
-/**
- * Live generation rate from two `/slots` samples. Null on the first sample of a
- * generation (no baseline yet, keep the previous value); zero when idle.
- */
+/** Rate from two `/slots` samples: null until a baseline exists, zero when idle. */
 fun tokensPerSecond(decoded: Int?, previousDecoded: Int?, previousAtMs: Long, nowMs: Long): Double? =
     when {
         decoded == null -> 0.0

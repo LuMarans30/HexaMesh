@@ -31,6 +31,7 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import kotlin.time.Duration.Companion.milliseconds
 
 /** Discovers mesh peers on the LAN, pings them, and merges the fallback list. */
 class MeshViewModel(application: Application) : AndroidViewModel(application) {
@@ -71,9 +72,8 @@ class MeshViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     /**
-     * Endpoints for llama-server's `--rpc`, or null when meshing is off or no
-     * peer is currently reachable. Ranked best-first and capped at
-     * [MAX_RPC_SERVERS]; call this at start time so it reflects the live pings.
+     * Endpoints for llama-server's `--rpc`, or null when meshing is off or nothing
+     * is reachable. Ranked and capped at [MAX_RPC_SERVERS]; call at start time.
      */
     fun rpcEndpoints(): String? {
         if (!usePeers.value || _worker.value) return null
@@ -90,17 +90,17 @@ class MeshViewModel(application: Application) : AndroidViewModel(application) {
     suspend fun observe() = coroutineScope {
         launch {
             combine(discovery.discover(), fallbackPeers, selfName) { discovered, fallback, self ->
-                    withoutSelf(mergePeers(discovered, parseFallbackPeers(fallback)), self)
-                }
+                withoutSelf(mergePeers(discovered, parseFallbackPeers(fallback)), self)
+            }
                 .collect { merged.value = it }
         }
 
         launch {
             combine(merged, latencies) { list, measured ->
-                    list.map { peer ->
-                        peer.copy(stats = peer.stats.copy(latencyMs = measured[peer.endpoint]))
-                    }
+                list.map { peer ->
+                    peer.copy(stats = peer.stats.copy(latencyMs = measured[peer.endpoint]))
                 }
+            }
                 .collect { _peers.value = it }
         }
 
@@ -115,7 +115,7 @@ class MeshViewModel(application: Application) : AndroidViewModel(application) {
                             }
                         }
                 }
-                delay(PING_INTERVAL_MS)
+                delay(PING_INTERVAL_MS.milliseconds)
             }
         }
 

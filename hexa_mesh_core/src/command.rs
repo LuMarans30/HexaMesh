@@ -5,17 +5,15 @@ use std::process::{Command, Stdio};
 
 use crate::config::ServerConfig;
 
-/// llama-server: the coordinator that serves the OpenAI API and can offload to
-/// peers. Only the args the app owns are built here; port, sampling, threads and
-/// GPU layers arrive through `extra_args` so the user can edit the defaults.
+/// llama-server: serves the OpenAI API and can offload to peers. Builds only the
+/// app-owned args; port, sampling, threads and GPU layers come from `extra_args`.
 pub fn build_server_command(exe: &Path, config: &ServerConfig) -> Command {
     let mut cmd = base_command(exe, config);
 
     let mut args: Vec<String> = vec![
         "--host".into(),
         "0.0.0.0".into(),
-        // Router mode: no `-m`, so llama-server loads models from `--models-dir`
-        // on demand and forwards each request to the matching instance.
+        // No `-m`: router mode loads models from `--models-dir` on demand.
         "--models-dir".into(),
         config.models_dir.clone(),
     ];
@@ -25,9 +23,8 @@ pub fn build_server_command(exe: &Path, config: &ServerConfig) -> Command {
         args.push(config.api_key.clone());
     }
 
-    // `--device` restricts llama.cpp to the listed devices, and RPC peers are
-    // registered separately, so pinning a device would exclude them. When
-    // meshing, let llama.cpp pick every available device instead.
+    // `--device` pins llama.cpp to those devices and RPC peers register
+    // separately, so when meshing let llama.cpp pick every available device.
     if config.rpc_servers.is_empty()
         && let Some(device) = backend_device(&config.backend)
     {
@@ -46,9 +43,8 @@ pub fn build_server_command(exe: &Path, config: &ServerConfig) -> Command {
     cmd
 }
 
-/// ggml-rpc-server: exposes this device's accelerators so a coordinator can use
-/// them. It takes a much smaller flag set than llama-server, so the user's
-/// launch args are intentionally not forwarded.
+/// ggml-rpc-server: exposes this device's accelerators to a coordinator. Its
+/// flag set is much smaller, so the user's launch args are not forwarded.
 pub fn build_rpc_command(exe: &Path, config: &ServerConfig) -> Command {
     let mut cmd = base_command(exe, config);
 
@@ -68,8 +64,7 @@ pub fn build_rpc_command(exe: &Path, config: &ServerConfig) -> Command {
     cmd
 }
 
-/// Environment and process hygiene shared by both roles: the Qualcomm DSP search
-/// paths, the cache/work directories, and a SIGKILL on JVM death.
+/// Environment and process hygiene shared by both roles.
 fn base_command(exe: &Path, config: &ServerConfig) -> Command {
     let ServerConfig {
         lib_dir,
@@ -103,8 +98,7 @@ fn base_command(exe: &Path, config: &ServerConfig) -> Command {
     let _ = fs::create_dir_all(&cl_cache_dir);
     let _ = fs::create_dir_all(&work_dir);
 
-    // Android has no usable $HOME, so pin llama.cpp's cache (Hugging Face hub and
-    // the general file cache both read `LLAMA_CACHE`) to an app-owned directory.
+    // Android has no usable $HOME; pin the Hugging Face and file caches here.
     if !llama_cache_dir.is_empty() {
         let _ = fs::create_dir_all(llama_cache_dir);
         cmd.env("LLAMA_CACHE", llama_cache_dir);
@@ -138,8 +132,7 @@ fn base_command(exe: &Path, config: &ServerConfig) -> Command {
     cmd
 }
 
-/// Maps the app's backend label to a ggml device name, or None to let the
-/// binary pick its default.
+/// Maps the app's backend label to a ggml device name; None lets the binary pick.
 fn backend_device(backend: &str) -> Option<&'static str> {
     match backend.to_lowercase().as_str() {
         "gpu" | "opencl" => Some("GPUOpenCL"),
@@ -148,7 +141,6 @@ fn backend_device(backend: &str) -> Option<&'static str> {
     }
 }
 
-/// Builds the right command for the config's role.
 pub fn build_command(exe: &Path, config: &ServerConfig) -> Command {
     if config.is_rpc() {
         build_rpc_command(exe, config)

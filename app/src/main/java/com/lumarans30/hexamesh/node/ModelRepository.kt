@@ -32,8 +32,8 @@ private val DRAFT_PREFIXES = listOf("mtp-", "dspark-", "dflash-")
 
 /**
  * Mirrors llama.cpp's `load_from_models_dir` for top-level files: a lowercase
- * `.gguf` is a model unless it is an `mmproj` or a draft sidecar. Case-sensitive
- * like upstream, so the app's list matches the router's `--models-dir` scan.
+ * `.gguf` is a model unless it is an `mmproj` or draft sidecar. Keep it in step
+ * with upstream so the app's list matches the router's `--models-dir` scan.
  */
 internal fun isLoadableModel(fileName: String): Boolean =
     fileName.endsWith(".gguf") &&

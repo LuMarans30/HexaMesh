@@ -9,11 +9,9 @@ import android.provider.OpenableColumns
 private const val EXTERNAL_STORAGE_AUTHORITY = "com.android.externalstorage.documents"
 
 /**
- * Maps a Storage Access Framework document id to a real filesystem path, when
- * one exists. Only "local" providers expose one; cloud providers return `null`,
- * which means the file can only be copied (not moved).
- *
- * Pure so it can be tested without Android.
+ * Maps a local Storage Access Framework document id to a filesystem path; cloud
+ * providers have none and return null, so those files can only be copied. Pure
+ * so it is testable without Android.
  */
 internal fun documentIdToPath(
     authority: String?,

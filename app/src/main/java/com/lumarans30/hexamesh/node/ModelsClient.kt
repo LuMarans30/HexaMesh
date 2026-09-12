@@ -4,8 +4,8 @@ import java.net.HttpURLConnection
 import java.net.URL
 
 /**
- * Asks a running llama-server **router** to re-scan its `--models-dir`, so a
- * model added to the folder while the node runs appears without a restart.
+ * Asks a running llama-server router to re-scan `--models-dir`, so a model added
+ * while the node runs appears without a restart.
  */
 class ModelsClient(
     private val port: Int,

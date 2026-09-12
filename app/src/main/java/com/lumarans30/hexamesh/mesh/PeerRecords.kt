@@ -1,8 +1,8 @@
 package com.lumarans30.hexamesh.mesh
 
 /**
- * Builds a peer from a resolved mDNS record. Memory comes from optional TXT
- * attributes; a missing or malformed value stays unknown rather than becoming 0.
+ * Builds a peer from a resolved mDNS record. A missing or malformed memory TXT
+ * stays unknown rather than becoming 0.
  */
 fun discoveredPeer(
     serviceName: String,
@@ -26,10 +26,8 @@ fun discoveredPeer(
     )
 
 /**
- * Parses the fallback-peer setting: one `host` or `host[:port]` per line, with
- * `#` comments ignored. Entries with a bad host or port are dropped; a missing
- * port defaults to [DEFAULT_RPC_PORT]. These peers are manual, so they do not
- * expire with discovery.
+ * One `host` or `host[:port]` per line, `#` comments ignored. A missing port
+ * defaults to [DEFAULT_RPC_PORT]; malformed entries are dropped.
  */
 fun parseFallbackPeers(text: String): List<PeerNode> =
     text.lineSequence()
@@ -80,9 +78,8 @@ private fun Map<String, ByteArray>.longValue(key: String): Long? =
     this[key]?.toString(Charsets.UTF_8)?.trim()?.toLongOrNull()
 
 /**
- * TXT attributes advertising this device's spare RAM to the mesh. Unknown
- * readings fall back to 0 so the record always carries at least one attribute
- * (an empty TXT record trips a framework bug in the system NSD service).
+ * TXT attributes advertising spare RAM. Unknown readings become 0 so the record
+ * always has at least one attribute (an empty TXT record trips the NSD service).
  */
 fun memoryAttributes(freeBytes: Long?, totalBytes: Long?): Map<String, ByteArray> =
     mapOf(

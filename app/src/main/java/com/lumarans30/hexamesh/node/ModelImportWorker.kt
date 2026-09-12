@@ -17,12 +17,8 @@ import java.io.IOException
 import kotlinx.coroutines.CancellationException
 
 /**
- * Imports a picked `.gguf` into the models directory.
- *
- * A **move** renames the file (instant, no extra space) when the app has raw
- * access to it, falling back to copy-then-delete across volumes. A **copy**
- * always streams through the picked URI, so it works without "All files
- * access" and for cloud providers too.
+ * Imports a picked `.gguf` into the models directory: a rename when possible,
+ * otherwise a streamed copy (which works without all-files access).
  */
 class ModelImportWorker(appContext: Context, params: WorkerParameters) :
     CoroutineWorker(appContext, params) {

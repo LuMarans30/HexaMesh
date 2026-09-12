@@ -19,9 +19,8 @@ sealed interface TailEvent {
 }
 
 /**
- * Follows a growing text file and emits each completed line. Detects truncation
- * and re-reads from the top, which the Rust supervisor triggers on every server
- * start (`OpenOptions::truncate`).
+ * Follows a growing text file, emitting each completed line. Truncation rewinds
+ * to the top (the supervisor truncates the log on every server start).
  */
 class LogTailer(
     private val file: File,

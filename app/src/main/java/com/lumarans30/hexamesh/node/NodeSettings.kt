@@ -2,10 +2,7 @@ package com.lumarans30.hexamesh.node
 
 import com.lumarans30.hexamesh.bridge.ServerRole
 
-/**
- * Node configuration the controller reads fresh each time a model is loaded, so
- * settings changes take effect on the next start without restarting the process.
- */
+/** Node config the controller reads on each start, so changes apply next start. */
 interface NodeSettings {
     val port: Int
 

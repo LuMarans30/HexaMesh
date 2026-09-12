@@ -4,10 +4,7 @@ import com.lumarans30.hexamesh.node.DownloadRequest
 import com.lumarans30.hexamesh.node.Model
 import com.lumarans30.hexamesh.node.NodeState
 
-/**
- * Everything the Manage screen renders, gathered into one immutable snapshot so
- * the screen takes a state object instead of a couple dozen arguments.
- */
+/** Snapshot the Manage screen renders. */
 data class ManagerUiState(
     val node: NodeState = NodeState.Stopped,
     val models: List<Model> = emptyList(),
@@ -21,7 +18,7 @@ data class ManagerUiState(
     val importError: String? = null,
 )
 
-/** Callbacks the Manage screen raises, grouped so the screen signature stays small. */
+/** Callbacks the Manage screen raises. */
 class ManagerActions(
     val onDelete: (Model) -> Unit,
     val onDownload: (DownloadRequest) -> Unit,

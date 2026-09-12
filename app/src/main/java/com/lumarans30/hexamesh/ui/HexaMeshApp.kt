@@ -41,10 +41,7 @@ import com.lumarans30.hexamesh.logs.NodeMetrics
 import com.lumarans30.hexamesh.mesh.PeerNode
 import com.lumarans30.hexamesh.node.NodeState
 
-/**
- * Wires the view models to the tabbed shell. Keeps the composables free of
- * view-model lookups so they can be previewed and tested with plain state.
- */
+/** Wires the view models to the tabbed shell; the composables below take plain state. */
 @Composable
 fun hexaMeshApp(
     nodeViewModel: NodeViewModel,
@@ -134,10 +131,6 @@ fun hexaMeshApp(
     )
 }
 
-/**
- * Single scaffold for the whole app: brand top bar, the persistent node action
- * bar above the bottom navigation, and one saveable tab at a time.
- */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun hexaMeshShell(
@@ -236,10 +229,7 @@ private fun hexaMeshShell(
     }
 }
 
-/**
- * Start/stop control that stays reachable from every tab. Mirrors the enabled
- * rules of [controlsEnabled] so the button never invites an invalid action.
- */
+/** Start/stop control reachable from every tab; enabled rules mirror [controlsEnabled]. */
 @Composable
 private fun nodeActionBar(
     state: NodeState,

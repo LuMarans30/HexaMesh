@@ -5,11 +5,7 @@ import java.net.Socket
 
 private const val NANOS_PER_MILLI = 1_000_000L
 
-/**
- * Round-trip time to open a TCP connection to [host]:[port], in milliseconds, or
- * null when the peer refused or the connect timed out. This is the LAN latency
- * used to rank peers.
- */
+/** Connect round-trip to [host]:[port] in ms, or null on refusal/timeout. */
 fun tcpLatencyMs(host: String, port: Int, timeoutMs: Int = 500): Long? {
     val start = System.nanoTime()
     return runCatching {

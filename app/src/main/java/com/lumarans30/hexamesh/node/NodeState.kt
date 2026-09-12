@@ -1,9 +1,6 @@
 package com.lumarans30.hexamesh.node
 
-/**
- * Observable lifecycle of the mesh node. The node always runs llama-server in
- * router mode, so there is a single model set rather than one active model.
- */
+/** Observable lifecycle of the node; it always runs llama-server in router mode. */
 sealed interface NodeState {
     data object Stopped : NodeState
     data object Starting : NodeState

@@ -7,8 +7,7 @@ const val PEER_TTL_MS = 30_000L
 const val MAX_RPC_SERVERS = 16
 
 /**
- * Ranks peers best-first by the coordinator's policy: most free memory, then
- * lowest latency, then id so the order is stable across equal candidates.
+ * Ranks peers best-first by free memory, then latency, then id (stable on ties).
  * Unknown readings sort last.
  */
 fun rankPeers(peers: List<PeerNode>): List<PeerNode> =
@@ -19,9 +18,7 @@ fun rankPeers(peers: List<PeerNode>): List<PeerNode> =
     )
 
 /**
- * A peer is reachable once its RPC port answered a ping and the record is still
- * fresh. Manual peers never expire (there is no discovery to refresh them).
- * This is the gate for `--rpc` selection, where capacity is not yet known.
+ * Pinging and freshness gate for `--rpc` selection. Manual peers never expire.
  */
 fun isReachable(peer: PeerNode, nowMs: Long, maxAgeMs: Long = PEER_TTL_MS): Boolean {
     if (peer.stats.latencyMs == null) return false

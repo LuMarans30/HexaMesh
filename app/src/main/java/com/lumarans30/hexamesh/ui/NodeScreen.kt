@@ -65,8 +65,8 @@ import java.util.Locale
 import kotlinx.coroutines.launch
 
 /**
- * Manage tab: model picker, node status and the transfer/diagnostics panels.
- * The shell owns the top bar, the persistent action bar and the bottom nav.
+ * Manage tab: the model library, node status and transfer/diagnostics panels.
+ * The shell owns the top bar, action bar and bottom nav.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable

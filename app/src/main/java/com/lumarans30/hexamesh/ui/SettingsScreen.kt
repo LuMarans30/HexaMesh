@@ -36,9 +36,8 @@ import com.lumarans30.hexamesh.platform.parseLaunchArgs
 import kotlinx.coroutines.launch
 
 /**
- * Settings tab: the launch args text is the single source of truth, port
- * included. The node reads it on each start, so saving never disturbs a running
- * server.
+ * Settings tab: the launch args are the source of truth (port included) and are
+ * read on each start, so saving never disturbs a running server.
  */
 @Composable
 fun settingsScreen(

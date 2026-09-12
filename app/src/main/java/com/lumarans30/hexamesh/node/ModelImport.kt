@@ -6,24 +6,18 @@ import java.io.InputStream
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
 
-/** Result of importing a file into the models directory. */
 data class ImportOutcome(val target: File, val warning: String? = null)
 
 private const val BUFFER_SIZE = 64 * 1024
 private const val PROGRESS_STEP_BYTES = 2L * 1024 * 1024
 
 /**
- * Moves or copies [source] into [targetDir].
+ * Moves or copies [source] into [targetDir]. A move renames first (instant, no
+ * extra space) and falls back to copy-then-delete across volumes; both paths
+ * need path access, so this is only used with all-files access.
  *
- * With [move], a rename is attempted first: it is instant and needs no extra
- * space. When the source lives on another volume the rename fails, so this
- * falls back to copy-then-delete.
- *
- * Both paths need raw read access to [source], so this is only used for files
- * the app can already open by path (i.e. with all-files access).
- *
- * @throws IOException if the source is missing, the destination already exists,
- *   there is not enough free space, or the copy fails.
+ * @throws IOException when the source is missing, the target exists, space is
+ *   short, or the copy fails.
  */
 internal suspend fun importModel(
     source: File,
@@ -57,11 +51,8 @@ internal suspend fun importModel(
 }
 
 /**
- * Copies a picked document into [targetDir] by streaming it.
- *
- * Unlike [importModel] this needs no filesystem access to the source: it reads
- * through [open], which is how a file picked from shared or cloud storage is
- * copied without "All files access".
+ * Copies a picked document into [targetDir] by streaming [open], so it needs no
+ * filesystem access and works for shared or cloud storage.
  */
 internal suspend fun importFromStream(
     fileName: String,

@@ -31,7 +31,7 @@ import com.lumarans30.hexamesh.logs.NodeMetrics
 import java.util.Locale
 
 /**
- * Logs tab: a diagnostics strip over a live terminal. [observe] blocks for as
+ * Logs tab: a diagnostics strip over a live terminal. [observe] suspends for as
  * long as the tab is visible, so the LaunchedEffect cancels it on the way out.
  */
 @Composable

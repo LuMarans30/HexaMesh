@@ -38,7 +38,7 @@ pub(crate) struct Supervisor {
 }
 
 /// How the supervisor proves the child is alive. llama-server answers HTTP;
-/// ggml-rpc-server has no HTTP surface, so accepting a connection is enough.
+/// ggml-rpc-server has no HTTP surface, so a TCP connect is enough.
 #[derive(Clone, Copy, PartialEq, Eq)]
 enum Probe {
     Http,
@@ -86,15 +86,17 @@ impl Supervisor {
         label: &'static str,
         probe: Probe,
     ) -> Result<Self, String> {
-        // The node always runs in router mode; models load from `--models-dir`
-        // on demand, so there is no single model path to validate.
         if !exe.exists() {
             return Err(format!("Server binary not found at {}", exe.display()));
         }
 
-        let bind_port = if config.is_rpc() { config.rpc_port } else { config.port };
-        let port = u16::try_from(bind_port)
-            .map_err(|_| format!("Invalid port specified: {bind_port}"))?;
+        let bind_port = if config.is_rpc() {
+            config.rpc_port
+        } else {
+            config.port
+        };
+        let port =
+            u16::try_from(bind_port).map_err(|_| format!("Invalid port specified: {bind_port}"))?;
 
         let log_writer = Self::open_log_file(log_path);
 
@@ -246,7 +248,6 @@ impl Supervisor {
                         return;
                     }
                 } else {
-                    // current == Status::Running
                     misses += 1;
                     if misses >= HEALTH_MAX_MISSES {
                         let message = format!("{label} stopped responding on port {port}.");

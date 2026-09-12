@@ -15,12 +15,9 @@ const val MAX_SERVER_PORT = 65535
 fun isValidPort(value: Int): Boolean = value in MIN_SERVER_PORT..MAX_SERVER_PORT
 
 /**
- * Persisted node settings. The launch args are the single source of truth, port
- * included; [port] is parsed back out for the app's own use (health probe, URL).
- *
- * Reads go straight to the [SettingsStore] so the service and the UI, which hold
- * separate instances, always agree; the flow is the UI's reactive copy and must
- * stay per-instance.
+ * Persisted node settings. Launch args are the source of truth, port included;
+ * reads go to the [SettingsStore] so separate instances agree, while the flow is
+ * the per-instance UI copy.
  */
 class ServerSettings(private val store: SettingsStore) : NodeSettings {
 

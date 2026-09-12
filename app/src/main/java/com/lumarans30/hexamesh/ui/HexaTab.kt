@@ -2,10 +2,7 @@ package com.lumarans30.hexamesh.ui
 
 import com.lumarans30.hexamesh.R
 
-/**
- * Tabs of the main shell, in the order they appear in the bottom bar. Manage
- * reuses the brand hexagon; the rest have dedicated drawables.
- */
+/** Tabs in bottom-bar order. */
 enum class HexaTab(val labelRes: Int, val iconRes: Int) {
     Manage(R.string.tab_manage, R.drawable.ic_hexagon),
     Mesh(R.string.tab_mesh, R.drawable.ic_mesh),

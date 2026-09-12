@@ -9,11 +9,7 @@ import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
 
-/**
- * Advertises this device's RPC endpoint so peers can find it over mDNS. Emits
- * the name the network actually gave the service (Android appends a suffix on
- * a collision), or null while unregistered.
- */
+/** Advertises this device's RPC endpoint over mDNS, emitting the name the network assigned. */
 class NsdAdvertiser(private val context: Context) {
 
     fun advertise(

@@ -6,11 +6,8 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 
 /**
- * Persisted mesh settings. The fallback-peer list is the raw text the user
- * typed; the node parses it with [com.lumarans30.hexamesh.mesh.parseFallbackPeers].
- *
- * Reads go straight to the [SettingsStore] so separate instances agree; the flow
- * is the UI's reactive copy and must stay per-instance.
+ * Persisted mesh settings. Reads go to the [SettingsStore] so separate instances
+ * agree; the flows are the per-instance UI copy.
  */
 class MeshSettings(private val store: SettingsStore) {
 

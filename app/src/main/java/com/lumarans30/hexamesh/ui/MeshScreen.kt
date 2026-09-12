@@ -36,8 +36,8 @@ import com.lumarans30.hexamesh.mesh.PeerNode
 import com.lumarans30.hexamesh.mesh.PeerSource
 
 /**
- * Mesh tab: live peer discovery plus the fallback list. Discovery only runs
- * while this screen is composed, so browsing stops when the user leaves the tab.
+ * Mesh tab: live peer discovery plus the fallback list. Discovery runs only while
+ * this screen is composed, so browsing stops when the user leaves the tab.
  */
 @Composable
 fun meshScreen(

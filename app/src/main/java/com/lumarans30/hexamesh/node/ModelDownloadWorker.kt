@@ -22,11 +22,8 @@ import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.withContext
 
 /**
- * Downloads a `.gguf` into the models directory.
- *
- * Runs as a foreground worker so a multi-gigabyte download survives the app
- * being backgrounded, and streams to a `.part` file that is renamed only once
- * complete (so a half-written file never shows up as a model).
+ * Downloads a `.gguf` into the models directory as a foreground worker, streaming
+ * to a `.part` file that is renamed only when complete.
  */
 class ModelDownloadWorker(appContext: Context, params: WorkerParameters) :
     CoroutineWorker(appContext, params) {

@@ -42,9 +42,7 @@ data class TransferUiState(
     val importPrompt: ImportPrompt? = null,
 )
 
-/**
- * Owns the model list, the current selection and the two ingestion flows
- */
+/** Owns the model library and the download/import flows. */
 class TransferViewModel(application: Application) : AndroidViewModel(application) {
 
     private val context = application.applicationContext

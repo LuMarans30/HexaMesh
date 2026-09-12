@@ -12,12 +12,10 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
 
 /**
- * Browses the LAN for mesh peers over mDNS.
- *
- * Every found service gets a [NsdManager.ServiceInfoCallback], which resolves it
- * and keeps pushing updates (so TXT changes, like a refreshed memory figure,
- * reach us). The flow emits the whole set on every change. Collect it only while
- * the tab that shows peers is visible — it unregisters on cancel.
+ * Browses the LAN for peers over mDNS. Each service gets a
+ * [NsdManager.ServiceInfoCallback] so TXT changes (like a refreshed memory
+ * figure) reach us; the flow emits the whole set on every change and unregisters
+ * on cancel, so collect it only while the peer list is visible.
  */
 class NsdDiscovery(private val context: Context) {
 
@@ -106,8 +104,8 @@ class NsdDiscovery(private val context: Context) {
                 }
             }
 
-        // Emit an initial empty set so downstream `combine` fires even when no
-        // service is ever found (otherwise manual peers would stay hidden).
+        // Emit an empty set first so `combine` fires even with no peers
+        // (otherwise manual peers would stay hidden).
         publish()
 
         nsd.discoverServices(MESH_SERVICE_TYPE, NsdManager.PROTOCOL_DNS_SD, listener)
