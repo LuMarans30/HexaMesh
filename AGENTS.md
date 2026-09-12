@@ -153,8 +153,8 @@ Phase notes (the load-bearing bits):
   `ServerConfig.llamaCacheDir` → Rust), because Android has no usable `$HOME` and
   `hf_cache::get_cache_directory()` would otherwise resolve to an unwritable
   path. The Manage list is a plain library — `Model.id` (filename minus `.gguf`,
-  the router's `model` value), size and delete, no radio — and `NodeState`
-  carries only `serverUrl`. Shutdown signals the child's **process group**
+  the router's `model` value), the full file path, size and delete, no radio;
+  id and path are tap-to-copy — and `NodeState` carries only `serverUrl`. Shutdown signals the child's **process group**
   (`kill(-pid)`, valid because `command.rs` `setsid`s the child and router-spawned
   instances inherit that group), so model grandchildren can no longer orphan a
   SIGKILLed router. Still open: download ownership (`POST /models` vs
