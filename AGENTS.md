@@ -151,8 +151,12 @@ Phase notes (the load-bearing bits):
   preset — so keep the app's flat `models/` dir on `--models-dir` for imports,
   `adb push`, and arbitrary URLs, and add an HF cache for HF downloads.
   `unset_reserved_args()` strips api-key/model/alias and rewrites host/port per
-  child but **not** `--rpc`/`--device`, so mesh offloading is inherited; the
-  router enforces the API key and children listen only on loopback. Child
+  child but **not** `--rpc`/`--device`, so mesh offloading is inherited. That
+  inheritance is why `command.rs` appends `--models-max 1` whenever `--rpc` is set:
+  `ggml-rpc-server` serves one client at a time (`listen` backlog 1; `accept` →
+  serve → `accept`), so two live children would leave the second stalled behind
+  the first on the same peer. The router enforces the API key and children listen
+  only on loopback. Child
   stdout/stderr is forwarded into the router log with a `[port]` prefix, so
   `llama-server.log` still captures everything (port-tagged, not model-tagged).
   Steps 1–3 landed: the app is **router-only** — it always launches

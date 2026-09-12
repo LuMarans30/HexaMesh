@@ -39,6 +39,14 @@ pub fn build_server_command(exe: &Path, config: &ServerConfig) -> Command {
 
     args.extend(config.extra_args.iter().cloned());
 
+    // Every router child inherits `--rpc` and opens its own persistent connection,
+    // but `ggml-rpc-server` serves a single client at a time, so a second live child
+    // would stall behind the first on a peer.
+    if !config.rpc_servers.is_empty() {
+        args.push("--models-max".into());
+        args.push("1".into());
+    }
+
     cmd.args(&args);
     cmd
 }
