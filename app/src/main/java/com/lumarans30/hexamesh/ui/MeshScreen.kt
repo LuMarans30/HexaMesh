@@ -167,12 +167,16 @@ private fun peerCard(peer: PeerNode) {
                             PeerSource.Manual -> R.string.mesh_source_manual
                         },
                     )
-                val latency =
-                    peer.stats.latencyMs
-                        ?.let { " · $it ms" }
-                        .orEmpty()
+                val detail =
+                    if (peer.stats.inUse) {
+                        " · ${stringResource(R.string.mesh_peer_in_use)}"
+                    } else {
+                        peer.stats.latencyMs
+                            ?.let { " · $it ms" }
+                            .orEmpty()
+                    }
                 Text(
-                    text = "${peer.endpoint} · $source$latency",
+                    text = "${peer.endpoint} · $source$detail",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )

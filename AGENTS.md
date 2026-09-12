@@ -139,8 +139,9 @@ Phase notes (the load-bearing bits):
   `MeshViewModel` pings each peer over TCP (`tcpLatencies`, concurrent) so `--rpc`
   selection uses `isReachable` + `rankPeers`; peers already wired into the running
   node are marked `PeerStats.inUse` and skipped by the probe (reachable by
-  construction, latency unknown). Discovery is owned by `MeshViewModel` and run
-  from the app-foreground lifecycle (`MainActivity.onStart`/`onStop`), so peers are
+  construction, latency unknown), and the Mesh tab labels them "in use". Discovery
+  is owned by `MeshViewModel` and run from the app-foreground lifecycle
+  (`MainActivity.onStart`/`onStop`), so peers are
   known on any tab and `--rpc` injection no longer requires the Mesh tab to have
   been opened; pings fire on peer-set changes, not only on the 5s tick. `usePeers`
   gates injection, and a start carries the endpoints through `MeshService` →

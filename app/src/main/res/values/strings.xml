@@ -53,6 +53,7 @@
     <string name="mesh_empty">No peers yet. Put the other phone on the same Wi-Fi and start its node, or add it below.</string>
     <string name="mesh_source_discovered">discovered</string>
     <string name="mesh_source_manual">manual</string>
+    <string name="mesh_peer_in_use">in use</string>
     <string name="mesh_discoverable">Discoverable</string>
     <string name="mesh_discoverable_hint">Advertise this phone on the LAN so other nodes can find it by name.</string>
     <string name="mesh_worker">Provide compute</string>
