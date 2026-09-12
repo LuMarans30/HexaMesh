@@ -121,11 +121,13 @@ Phase notes (the load-bearing bits):
   `127.0.0.1:<port>/slots?model=<id>&autoload=0`, diffing `n_decoded` between
   samples — needs `--slots` (in the defaults) and the API key, and is the only live
   source (`/metrics`' rate gauge only updates at slot reset). Thermal: hottest
-  CPU/GPU zone from `/sys/class/thermal/thermal_zone*`. Memory: `MemAvailable / MemTotal` from
-  `/proc/meminfo` (the server's own RSS excludes GPU-offloaded weights, so it is
-  not a useful number). Terminal view is a `LazyColumn` over a ~2000-line capped
-  buffer; the tailer emits one batch per file read, so a router-startup burst is a
-  single flow emission instead of one per line. Per-peer logs are out of scope here.
+  CPU/GPU zone from `/sys/class/thermal/thermal_zone*` (the zone set is discovered
+  once and cached; only each `temp` is re-read). Memory: `MemAvailable / MemTotal`
+  from `/proc/meminfo` (the server's own RSS excludes GPU-offloaded weights, so it
+  is not a useful number). Terminal view is a `LazyColumn` over a ~2000-line capped
+  buffer; the tailer keeps the file open and emits one batch per read, so a
+  router-startup burst is a single flow emission instead of one per line. Per-peer
+  logs are out of scope here.
 - **4 —** the RPC backend is built and bundled: `scripts/enable_features.py`
   forces `GGML_RPC=ON`, `ggml-rpc-server` ships as `libggmlrpcserver.so`, and the
   supervisor runs either role (`ServerRole.SERVER`/`RPC`, with a TCP liveness
