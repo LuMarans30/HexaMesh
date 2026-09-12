@@ -218,7 +218,9 @@ Phase notes (the load-bearing bits):
 - **NSD TXT refresh re-registers:** NSD has no in-place TXT update, so a changed
   `free_mem` unregisters and re-registers the record, which briefly drops this
   device from peer discovery. The advertised figure is quantized so this only
-  happens on a meaningful change, not on ordinary cache churn.
+  happens on a meaningful change, not on ordinary cache churn. A failed or lost
+  registration is retried every few seconds; with quantized TXT, nothing else would
+  trigger another attempt.
 - **Icons:** self-contained drawables only.
 - **Model list parity:** `isLoadableModel` mirrors llama.cpp's
   `load_from_models_dir` for top-level files — lowercase `.gguf` only, skipping

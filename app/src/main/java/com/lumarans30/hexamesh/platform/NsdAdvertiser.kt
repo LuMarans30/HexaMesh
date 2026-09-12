@@ -13,6 +13,7 @@ import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeoutOrNull
+import java.util.concurrent.atomic.AtomicBoolean
 import kotlin.time.Duration.Companion.milliseconds
 
 /**
@@ -31,6 +32,8 @@ class NsdAdvertiser(
         callbackFlow {
             val nsd = context.getSystemService(Context.NSD_SERVICE) as NsdManager
             val unregistered = Channel<Unit>(Channel.CONFLATED)
+            val retry = Channel<Unit>(Channel.CONFLATED)
+            val registered = AtomicBoolean(false)
             lateinit var listener: NsdManager.RegistrationListener
 
             fun register(attrs: Map<String, ByteArray>) {
@@ -46,6 +49,7 @@ class NsdAdvertiser(
                     object : NsdManager.RegistrationListener {
                         override fun onServiceRegistered(serviceInfo: NsdServiceInfo) {
                             Log.i(TAG, "Registered as ${serviceInfo.serviceName}")
+                            registered.set(true)
                             trySend(serviceInfo.serviceName)
                         }
 
@@ -54,10 +58,13 @@ class NsdAdvertiser(
                             errorCode: Int,
                         ) {
                             Log.w(TAG, "Registration failed: $errorCode")
+                            registered.set(false)
+                            retry.trySend(Unit)
                             trySend(null)
                         }
 
                         override fun onServiceUnregistered(serviceInfo: NsdServiceInfo) {
+                            registered.set(false)
                             unregistered.trySend(Unit)
                         }
 
@@ -78,14 +85,18 @@ class NsdAdvertiser(
 
             launch {
                 while (isActive) {
-                    delay(REFRESH_INTERVAL_MS.milliseconds)
-                    val next = attributes()
-                    if (next == current) continue
+                    val failed =
+                        withTimeoutOrNull(REFRESH_INTERVAL_MS.milliseconds) { retry.receive() } != null
+                    if (failed) delay(RETRY_INTERVAL_MS.milliseconds)
 
+                    val next = attributes()
+                    if (registered.get() && next == current) continue
+
+                    if (registered.get()) {
+                        runCatching { nsd.unregisterService(listener) }
+                        withTimeoutOrNull(UNREGISTER_TIMEOUT_MS.milliseconds) { unregistered.receive() }
+                    }
                     current = next
-                    runCatching { nsd.unregisterService(listener) }
-                    // Wait for the release before re-registering
-                    withTimeoutOrNull(UNREGISTER_TIMEOUT_MS.milliseconds) { unregistered.receive() }
                     register(next)
                 }
             }
@@ -96,6 +107,7 @@ class NsdAdvertiser(
     private companion object {
         const val TAG = "HexaNsd"
         const val REFRESH_INTERVAL_MS = 30_000L
+        const val RETRY_INTERVAL_MS = 3_000L
         const val UNREGISTER_TIMEOUT_MS = 3_000L
     }
 }
