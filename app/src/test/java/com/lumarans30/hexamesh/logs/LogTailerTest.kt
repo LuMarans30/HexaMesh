@@ -19,7 +19,7 @@ class LogTailerTest {
 
     private fun logFile(contents: String = ""): File = folder.newFile("llama-server.log").apply { writeText(contents) }
 
-    private fun List<TailEvent>.texts(): List<String> = filterIsInstance<TailEvent.Line>().map { it.text }
+    private fun List<TailEvent>.texts(): List<String> = filterIsInstance<TailEvent.Lines>().flatMap { it.texts }
 
     @Test
     fun `emits lines already in the file`() =
@@ -80,7 +80,7 @@ class LogTailerTest {
             job.cancel()
 
             assertEquals(listOf("old line one", "old line two", "new"), events.texts())
-            assertEquals(TailEvent.Reset, events[2])
+            assertEquals(TailEvent.Reset, events[1])
         }
 
     @Test

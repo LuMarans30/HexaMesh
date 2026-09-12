@@ -13,8 +13,12 @@ class LineBuffer(
     private val _lines = MutableStateFlow<List<String>>(emptyList())
     val lines: StateFlow<List<String>> = _lines.asStateFlow()
 
-    fun append(line: String) {
-        buffer.addLast(line)
+    fun append(line: String) = append(listOf(line))
+
+    fun append(lines: List<String>) {
+        if (lines.isEmpty()) return
+
+        lines.forEach { buffer.addLast(it) }
         while (buffer.size > capacity) buffer.removeFirst()
         _lines.value = buffer.toList()
     }

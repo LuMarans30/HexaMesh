@@ -14,8 +14,8 @@ private const val NEWLINE = '\n'.code.toByte()
 private const val MAX_CHUNK_BYTES = 1 shl 20
 
 sealed interface TailEvent {
-    data class Line(
-        val text: String,
+    data class Lines(
+        val texts: List<String>,
     ) : TailEvent
 
     data object Reset : TailEvent
@@ -66,9 +66,8 @@ class LogTailer(
 
                     val newline = pending.lastIndexOf(NEWLINE)
                     if (newline >= 0) {
-                        for (line in String(pending, 0, newline, StandardCharsets.UTF_8).split('\n')) {
-                            emit(TailEvent.Line(line.trimEnd('\r')))
-                        }
+                        val text = String(pending, 0, newline, StandardCharsets.UTF_8)
+                        emit(TailEvent.Lines(text.split('\n').map { it.trimEnd('\r') }))
                         pending = pending.copyOfRange(newline + 1, pending.size)
                     }
 

@@ -55,7 +55,7 @@ class LogsViewModel(
         withContext(Dispatchers.IO) {
             LogTailer(logFile).events().collect { event ->
                 when (event) {
-                    is TailEvent.Line -> buffer.append(event.text)
+                    is TailEvent.Lines -> buffer.append(event.texts)
                     TailEvent.Reset -> buffer.clear()
                 }
             }

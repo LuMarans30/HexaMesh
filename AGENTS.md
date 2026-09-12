@@ -124,7 +124,8 @@ Phase notes (the load-bearing bits):
   CPU/GPU zone from `/sys/class/thermal/thermal_zone*`. Memory: `MemAvailable / MemTotal` from
   `/proc/meminfo` (the server's own RSS excludes GPU-offloaded weights, so it is
   not a useful number). Terminal view is a `LazyColumn` over a ~2000-line capped
-  buffer. Per-peer logs are out of scope here.
+  buffer; the tailer emits one batch per file read, so a router-startup burst is a
+  single flow emission instead of one per line. Per-peer logs are out of scope here.
 - **4 —** the RPC backend is built and bundled: `scripts/enable_features.py`
   forces `GGML_RPC=ON`, `ggml-rpc-server` ships as `libggmlrpcserver.so`, and the
   supervisor runs either role (`ServerRole.SERVER`/`RPC`, with a TCP liveness

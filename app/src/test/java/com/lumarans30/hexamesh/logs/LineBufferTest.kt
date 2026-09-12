@@ -22,4 +22,23 @@ class LineBufferTest {
 
         assertEquals(emptyList<String>(), buffer.lines.value)
     }
+
+    @Test
+    fun `a batch keeps order and only the most recent lines`() {
+        val buffer = LineBuffer(capacity = 3)
+
+        buffer.append(listOf("a", "b", "c", "d", "e"))
+
+        assertEquals(listOf("c", "d", "e"), buffer.lines.value)
+    }
+
+    @Test
+    fun `an empty batch is ignored`() {
+        val buffer = LineBuffer(capacity = 3)
+        buffer.append("a")
+
+        buffer.append(emptyList())
+
+        assertEquals(listOf("a"), buffer.lines.value)
+    }
 }
