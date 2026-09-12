@@ -37,8 +37,6 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.lumarans30.hexamesh.R
-import com.lumarans30.hexamesh.logs.NodeMetrics
-import com.lumarans30.hexamesh.mesh.PeerNode
 import com.lumarans30.hexamesh.node.NodeState
 
 /** Wires the view models to the tabbed shell; the composables below take plain state. */
@@ -66,21 +64,15 @@ fun hexaMeshApp(
     val meshWorker by meshViewModel.worker.collectAsStateWithLifecycle()
     val meshUsePeers by meshViewModel.usePeers.collectAsStateWithLifecycle()
 
-    val state =
+    val manager =
         ManagerUiState(
             node = nodeState,
-            models = transfer.models,
             batteryExempt = batteryExempt,
             apiKey = nodeViewModel.apiKey,
-            adbPushHint = transfer.adbPushHint,
-            download = transfer.download,
-            downloadError = transfer.downloadError,
-            importPrompt = transfer.importPrompt,
-            importProgress = transfer.importProgress,
-            importError = transfer.importError,
+            transfer = transfer,
         )
 
-    val actions =
+    val managerActions =
         remember(
             nodeViewModel,
             transferViewModel,
@@ -109,24 +101,36 @@ fun hexaMeshApp(
             )
         }
 
+    val mesh =
+        MeshUiState(
+            peers = meshPeers,
+            fallbackPeers = fallbackPeers,
+            discoverable = meshDiscoverable,
+            worker = meshWorker,
+            usePeers = meshUsePeers,
+        )
+
+    val meshActions =
+        remember(meshViewModel) {
+            MeshActions(
+                onApplyFallbackPeers = meshViewModel::applyFallbackPeers,
+                onDiscoverableChange = meshViewModel::setDiscoverable,
+                onWorkerChange = meshViewModel::setWorker,
+                onUsePeersChange = meshViewModel::setUsePeers,
+                onObserve = meshViewModel::observe,
+            )
+        }
+
+    val logs = LogsUiState(lines = logLines, metrics = nodeMetrics, observe = logsViewModel::observe)
+    val settings = SettingsUiState(launchArgs = launchArgs, onApply = settingsViewModel::apply)
+
     hexaMeshShell(
-        state = state,
-        actions = actions,
-        launchArgs = launchArgs,
-        onApplySettings = settingsViewModel::apply,
-        logLines = logLines,
-        nodeMetrics = nodeMetrics,
-        observeLogs = logsViewModel::observe,
-        meshPeers = meshPeers,
-        fallbackPeers = fallbackPeers,
-        meshDiscoverable = meshDiscoverable,
-        meshWorker = meshWorker,
-        meshUsePeers = meshUsePeers,
-        onApplyFallbackPeers = meshViewModel::applyFallbackPeers,
-        onMeshDiscoverableChange = meshViewModel::setDiscoverable,
-        onMeshWorkerChange = meshViewModel::setWorker,
-        onMeshUsePeersChange = meshViewModel::setUsePeers,
-        observePeers = meshViewModel::observe,
+        manager = manager,
+        managerActions = managerActions,
+        mesh = mesh,
+        meshActions = meshActions,
+        logs = logs,
+        settings = settings,
         modifier = modifier,
     )
 }
@@ -134,23 +138,12 @@ fun hexaMeshApp(
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun hexaMeshShell(
-    state: ManagerUiState,
-    actions: ManagerActions,
-    launchArgs: String,
-    onApplySettings: (String) -> Unit,
-    logLines: List<String>,
-    nodeMetrics: NodeMetrics,
-    observeLogs: suspend () -> Unit,
-    meshPeers: List<PeerNode>,
-    fallbackPeers: String,
-    meshDiscoverable: Boolean,
-    meshWorker: Boolean,
-    meshUsePeers: Boolean,
-    onApplyFallbackPeers: (String) -> Unit,
-    onMeshDiscoverableChange: (Boolean) -> Unit,
-    onMeshWorkerChange: (Boolean) -> Unit,
-    onMeshUsePeersChange: (Boolean) -> Unit,
-    observePeers: suspend () -> Unit,
+    manager: ManagerUiState,
+    managerActions: ManagerActions,
+    mesh: MeshUiState,
+    meshActions: MeshActions,
+    logs: LogsUiState,
+    settings: SettingsUiState,
     modifier: Modifier = Modifier,
 ) {
     var tab by rememberSaveable { mutableStateOf(HexaTab.Manage) }
@@ -181,9 +174,9 @@ private fun hexaMeshShell(
         bottomBar = {
             Column {
                 nodeActionBar(
-                    state = state.node,
-                    onStart = actions.onStart,
-                    onStop = actions.onStop,
+                    state = manager.node,
+                    onStart = managerActions.onStart,
+                    onStop = managerActions.onStop,
                 )
                 tabBar(selected = tab, onSelect = { tab = it })
             }
@@ -192,41 +185,24 @@ private fun hexaMeshShell(
         tabState.SaveableStateProvider(tab.name) {
             when (tab) {
                 HexaTab.Manage -> {
-                    nodeScreen(state, actions, snackbarHostState, Modifier.padding(innerPadding))
+                    nodeScreen(
+                        manager,
+                        managerActions,
+                        snackbarHostState,
+                        Modifier.padding(innerPadding),
+                    )
                 }
 
                 HexaTab.Mesh -> {
-                    meshScreen(
-                        peers = meshPeers,
-                        fallbackPeers = fallbackPeers,
-                        discoverable = meshDiscoverable,
-                        worker = meshWorker,
-                        usePeers = meshUsePeers,
-                        onDiscoverableChange = onMeshDiscoverableChange,
-                        onWorkerChange = onMeshWorkerChange,
-                        onUsePeersChange = onMeshUsePeersChange,
-                        onApplyFallback = onApplyFallbackPeers,
-                        observe = observePeers,
-                        modifier = Modifier.padding(innerPadding),
-                    )
+                    meshScreen(mesh, meshActions, Modifier.padding(innerPadding))
                 }
 
                 HexaTab.Logs -> {
-                    logsScreen(
-                        lines = logLines,
-                        metrics = nodeMetrics,
-                        observe = observeLogs,
-                        modifier = Modifier.padding(innerPadding),
-                    )
+                    logsScreen(logs, Modifier.padding(innerPadding))
                 }
 
                 HexaTab.Settings -> {
-                    settingsScreen(
-                        launchArgs = launchArgs,
-                        onApply = onApplySettings,
-                        snackbarHostState = snackbarHostState,
-                        modifier = Modifier.padding(innerPadding),
-                    )
+                    settingsScreen(settings, snackbarHostState, Modifier.padding(innerPadding))
                 }
             }
         }

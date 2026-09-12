@@ -110,15 +110,15 @@ fun nodeScreen(
 
         Spacer(Modifier.height(8.dp))
 
-        if (state.models.isEmpty()) {
+        if (state.transfer.models.isEmpty()) {
             Text(
                 stringResource(R.string.no_model_found),
                 style = MaterialTheme.typography.bodyMedium,
             )
-            Text("  ${state.adbPushHint}", style = MaterialTheme.typography.bodySmall)
+            Text("  ${state.transfer.adbPushHint}", style = MaterialTheme.typography.bodySmall)
         } else {
             modelList(
-                models = state.models,
+                models = state.transfer.models,
                 deleteEnabled = controlsEnabled(nodeState),
                 onCopy = copy,
                 onDelete = { pendingDelete = it },
@@ -128,10 +128,10 @@ fun nodeScreen(
         Spacer(Modifier.height(16.dp))
 
         transfersSection(
-            download = state.download,
-            downloadError = state.downloadError,
-            importProgress = state.importProgress,
-            importError = state.importError,
+            download = state.transfer.download,
+            downloadError = state.transfer.downloadError,
+            importProgress = state.transfer.importProgress,
+            importError = state.transfer.importError,
             onCancelDownload = actions.onCancelDownload,
             onCancelImport = actions.onCancelImport,
         )
@@ -146,8 +146,10 @@ fun nodeScreen(
     if (sheetOpen) {
         ModalBottomSheet(onDismissRequest = { sheetOpen = false }, sheetState = sheetState) {
             ingestionSheet(
-                download = state.download,
-                importEnabled = state.importPrompt == null && state.importProgress == null,
+                download = state.transfer.download,
+                importEnabled =
+                    state.transfer.importPrompt == null &&
+                        state.transfer.importProgress == null,
                 onDownload = { request ->
                     actions.onDownload(request)
                     closeSheet()
@@ -171,7 +173,7 @@ fun nodeScreen(
         )
     }
 
-    state.importPrompt?.let { prompt ->
+    state.transfer.importPrompt?.let { prompt ->
         when (prompt) {
             is ImportPrompt.Choose -> {
                 importChoiceDialog(

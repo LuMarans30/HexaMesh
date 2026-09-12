@@ -7,15 +7,9 @@ import com.lumarans30.hexamesh.node.NodeState
 /** Snapshot the Manage screen renders. */
 data class ManagerUiState(
     val node: NodeState = NodeState.Stopped,
-    val models: List<Model> = emptyList(),
     val batteryExempt: Boolean = false,
     val apiKey: String = "",
-    val adbPushHint: String = "",
-    val download: DownloadStatus? = null,
-    val downloadError: String? = null,
-    val importPrompt: ImportPrompt? = null,
-    val importProgress: DownloadStatus? = null,
-    val importError: String? = null,
+    val transfer: TransferUiState = TransferUiState(),
 )
 
 /** Callbacks the Manage screen raises. */

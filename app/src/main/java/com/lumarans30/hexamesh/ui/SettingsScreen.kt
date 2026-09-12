@@ -35,18 +35,23 @@ import com.lumarans30.hexamesh.platform.lockedLaunchFlags
 import com.lumarans30.hexamesh.platform.parseLaunchArgs
 import kotlinx.coroutines.launch
 
+/** Snapshot the Settings screen edits. */
+data class SettingsUiState(
+    val launchArgs: String = "",
+    val onApply: (String) -> Unit = {},
+)
+
 /**
  * Settings tab: the launch args are the source of truth (port included) and are
  * read on each start, so saving never disturbs a running server.
  */
 @Composable
 fun settingsScreen(
-    launchArgs: String,
-    onApply: (String) -> Unit,
+    state: SettingsUiState,
     snackbarHostState: SnackbarHostState,
     modifier: Modifier = Modifier,
 ) {
-    var argsText by rememberSaveable { mutableStateOf(launchArgs) }
+    var argsText by rememberSaveable { mutableStateOf(state.launchArgs) }
     val lockedFlags = lockedLaunchFlags(parseLaunchArgs(argsText))
     val scope = rememberCoroutineScope()
     val keyboard = LocalSoftwareKeyboardController.current
@@ -60,7 +65,7 @@ fun settingsScreen(
     ) {
         keyboard?.hide()
         focusManager.clearFocus()
-        onApply(text)
+        state.onApply(text)
         scope.launch { snackbarHostState.showSnackbar(message) }
     }
 

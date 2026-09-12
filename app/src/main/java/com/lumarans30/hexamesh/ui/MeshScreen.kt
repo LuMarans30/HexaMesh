@@ -35,25 +35,35 @@ import com.lumarans30.hexamesh.R
 import com.lumarans30.hexamesh.mesh.PeerNode
 import com.lumarans30.hexamesh.mesh.PeerSource
 
+/** Snapshot the Mesh screen renders. */
+data class MeshUiState(
+    val peers: List<PeerNode> = emptyList(),
+    val fallbackPeers: String = "",
+    val discoverable: Boolean = false,
+    val worker: Boolean = false,
+    val usePeers: Boolean = false,
+)
+
+/** Callbacks the Mesh screen raises. */
+class MeshActions(
+    val onApplyFallbackPeers: (String) -> Unit,
+    val onDiscoverableChange: (Boolean) -> Unit,
+    val onWorkerChange: (Boolean) -> Unit,
+    val onUsePeersChange: (Boolean) -> Unit,
+    val onObserve: suspend () -> Unit,
+)
+
 /**
  * Mesh tab: live peer discovery plus the fallback list. Discovery runs only while
  * this screen is composed, so browsing stops when the user leaves the tab.
  */
 @Composable
 fun meshScreen(
-    peers: List<PeerNode>,
-    fallbackPeers: String,
-    discoverable: Boolean,
-    worker: Boolean,
-    usePeers: Boolean,
-    onDiscoverableChange: (Boolean) -> Unit,
-    onWorkerChange: (Boolean) -> Unit,
-    onUsePeersChange: (Boolean) -> Unit,
-    onApplyFallback: (String) -> Unit,
-    observe: suspend () -> Unit,
+    state: MeshUiState,
+    actions: MeshActions,
     modifier: Modifier = Modifier,
 ) {
-    LaunchedEffect(Unit) { observe() }
+    LaunchedEffect(Unit) { actions.onObserve() }
 
     LazyColumn(
         modifier = modifier.fillMaxSize(),
@@ -71,8 +81,8 @@ fun meshScreen(
             toggleRow(
                 title = stringResource(R.string.mesh_discoverable),
                 hint = stringResource(R.string.mesh_discoverable_hint),
-                checked = discoverable,
-                onChange = onDiscoverableChange,
+                checked = state.discoverable,
+                onChange = actions.onDiscoverableChange,
             )
         }
 
@@ -80,8 +90,8 @@ fun meshScreen(
             toggleRow(
                 title = stringResource(R.string.mesh_worker),
                 hint = stringResource(R.string.mesh_worker_hint),
-                checked = worker,
-                onChange = onWorkerChange,
+                checked = state.worker,
+                onChange = actions.onWorkerChange,
             )
         }
 
@@ -89,19 +99,19 @@ fun meshScreen(
             toggleRow(
                 title = stringResource(R.string.mesh_use_peers),
                 hint = stringResource(R.string.mesh_use_peers_hint),
-                checked = usePeers,
-                enabled = !worker,
-                onChange = onUsePeersChange,
+                checked = state.usePeers,
+                enabled = !state.worker,
+                onChange = actions.onUsePeersChange,
             )
         }
 
-        if (peers.isEmpty()) {
+        if (state.peers.isEmpty()) {
             item { emptyPeers() }
         } else {
-            items(peers, key = { it.id }) { peer -> peerCard(peer) }
+            items(state.peers, key = { it.id }) { peer -> peerCard(peer) }
         }
 
-        item { fallbackEditor(fallbackPeers, onApplyFallback) }
+        item { fallbackEditor(state.fallbackPeers, actions.onApplyFallbackPeers) }
     }
 }
 

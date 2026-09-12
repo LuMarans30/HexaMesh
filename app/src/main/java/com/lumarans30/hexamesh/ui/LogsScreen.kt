@@ -30,26 +30,32 @@ import com.lumarans30.hexamesh.logs.MemoryInfo
 import com.lumarans30.hexamesh.logs.NodeMetrics
 import java.util.Locale
 
+/** Snapshot the Logs screen renders. */
+data class LogsUiState(
+    val lines: List<String> = emptyList(),
+    val metrics: NodeMetrics = NodeMetrics(),
+    val observe: suspend () -> Unit = {},
+)
+
 /**
- * Logs tab: a diagnostics strip over a live terminal. [observe] suspends for as
- * long as the tab is visible, so the LaunchedEffect cancels it on the way out.
+ * Logs tab: a diagnostics strip over a live terminal. [LogsUiState.observe]
+ * suspends for as long as the tab is visible, so the LaunchedEffect cancels it on
+ * the way out.
  */
 @Composable
 fun logsScreen(
-    lines: List<String>,
-    metrics: NodeMetrics,
-    observe: suspend () -> Unit,
+    state: LogsUiState,
     modifier: Modifier = Modifier,
 ) {
-    LaunchedEffect(Unit) { observe() }
+    LaunchedEffect(Unit) { state.observe() }
 
     Column(modifier = modifier.fillMaxSize()) {
-        metricsPanel(metrics)
+        metricsPanel(state.metrics)
 
-        if (lines.isEmpty()) {
+        if (state.lines.isEmpty()) {
             logsEmpty(Modifier.weight(1f))
         } else {
-            logsList(lines, Modifier.weight(1f))
+            logsList(state.lines, Modifier.weight(1f))
         }
     }
 }
