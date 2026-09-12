@@ -47,31 +47,10 @@ class MeshSettings(
     private fun isUsePeers(): Boolean = store.getString(KEY_USE_PEERS, "") == "true"
 
     companion object {
-        private const val PREFS_NAME = "hexamesh_settings"
         private const val KEY_FALLBACK_PEERS = "fallback_peers"
         private const val KEY_DISCOVERABLE = "discoverable"
         private const val KEY_USE_PEERS = "use_peers"
 
-        fun from(context: Context): MeshSettings {
-            val prefs =
-                context.applicationContext
-                    .getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-
-            return MeshSettings(
-                object : SettingsStore {
-                    override fun getString(
-                        key: String,
-                        defaultValue: String,
-                    ): String = prefs.getString(key, defaultValue) ?: defaultValue
-
-                    override fun putString(
-                        key: String,
-                        value: String,
-                    ) {
-                        prefs.edit().putString(key, value).apply()
-                    }
-                },
-            )
-        }
+        fun from(context: Context): MeshSettings = MeshSettings(sharedPrefsStore(context, SETTINGS_PREFS_NAME))
     }
 }

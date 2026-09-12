@@ -3,7 +3,9 @@ use std::fs::{self, File};
 use std::os::unix::fs::PermissionsExt;
 use std::path::Path;
 
-pub fn run_diagnostics(exe: &Path, lib_dir: &str) {
+/// Checks the binary is executable, then probes the DSP devices and Hexagon
+/// skeletons, which only matter for the NPU backend.
+pub fn run_diagnostics(exe: &Path, lib_dir: &str, backend: &str) {
     if let Ok(md) = fs::metadata(exe) {
         let mode = md.permissions().mode();
         if mode & 0o111 == 0 {
@@ -14,6 +16,10 @@ pub fn run_diagnostics(exe: &Path, lib_dir: &str) {
         }
     } else {
         error!("Server binary not found at {}", exe.display());
+    }
+
+    if !matches!(backend.to_lowercase().as_str(), "npu" | "hexagon") {
+        return;
     }
 
     for dev in &["/dev/cdsprpc-smd", "/dev/adsprpc-smd"] {

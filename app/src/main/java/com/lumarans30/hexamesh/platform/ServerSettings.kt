@@ -52,30 +52,9 @@ class ServerSettings(
     }
 
     companion object {
-        private const val PREFS_NAME = "hexamesh_settings"
         private const val KEY_LAUNCH_ARGS = "launch_args"
         private const val KEY_ROLE = "role"
 
-        fun from(context: Context): ServerSettings {
-            val prefs =
-                context.applicationContext
-                    .getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-
-            return ServerSettings(
-                object : SettingsStore {
-                    override fun getString(
-                        key: String,
-                        defaultValue: String,
-                    ): String = prefs.getString(key, defaultValue) ?: defaultValue
-
-                    override fun putString(
-                        key: String,
-                        value: String,
-                    ) {
-                        prefs.edit().putString(key, value).apply()
-                    }
-                },
-            )
-        }
+        fun from(context: Context): ServerSettings = ServerSettings(sharedPrefsStore(context, SETTINGS_PREFS_NAME))
     }
 }

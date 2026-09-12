@@ -58,7 +58,7 @@ impl Supervisor {
         let exe = Path::new(&config.lib_dir).join(bin);
         let log_path = Path::new(&config.cache_dir).join(log_name);
 
-        diagnostics::run_diagnostics(&exe, &config.lib_dir);
+        diagnostics::run_diagnostics(&exe, &config.lib_dir, &config.backend);
 
         let mut sup = match Self::start(&exe, &config, &log_path, label, probe) {
             Ok(s) => s,
