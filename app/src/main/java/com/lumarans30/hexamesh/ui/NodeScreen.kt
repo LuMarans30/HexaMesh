@@ -438,7 +438,7 @@ private fun modelRow(
             RadioButton(selected = selected, onClick = onClick, enabled = enabled)
             Column(Modifier.weight(1f).padding(start = 4.dp)) {
                 Text(
-                    text = model.name,
+                    text = model.id,
                     style = MaterialTheme.typography.bodyLarge,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,

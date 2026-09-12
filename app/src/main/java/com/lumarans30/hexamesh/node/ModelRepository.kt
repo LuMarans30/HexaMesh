@@ -16,7 +16,7 @@ class ModelRepository(context: Context) {
     fun list(): List<Model> =
         dir.listFiles()
             ?.asSequence()
-            ?.filter { it.isFile && it.name.endsWith(EXTENSION, ignoreCase = true) }
+            ?.filter { it.isFile && isLoadableModel(it.name) }
             ?.map { Model(path = it.absolutePath, name = it.name, sizeBytes = it.length()) }
             ?.sortedBy { it.name.lowercase() }
             ?.toList()
@@ -43,9 +43,20 @@ class ModelRepository(context: Context) {
     private companion object {
         const val PREFS_NAME = "hexamesh_models"
         const val KEY_SELECTED = "selected_model"
-        const val EXTENSION = ".gguf"
     }
 }
+
+private val DRAFT_PREFIXES = listOf("mtp-", "dspark-", "dflash-")
+
+/**
+ * Mirrors llama.cpp's `load_from_models_dir` for top-level files: a lowercase
+ * `.gguf` is a model unless it is an `mmproj` or a draft sidecar. Case-sensitive
+ * like upstream, so the app's list matches the router's `--models-dir` scan.
+ */
+internal fun isLoadableModel(fileName: String): Boolean =
+    fileName.endsWith(".gguf") &&
+        !fileName.contains("mmproj") &&
+        DRAFT_PREFIXES.none(fileName::startsWith)
 
 internal fun resolveSelected(models: List<Model>, pinnedPath: String?): Model? =
     models.firstOrNull { it.path == pinnedPath } ?: models.firstOrNull()
