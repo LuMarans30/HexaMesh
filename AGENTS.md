@@ -149,8 +149,13 @@ Phase notes (the load-bearing bits):
   Steps 1–2 landed: `LLAMA_CACHE` is pinned to `<externalFilesDir>/hf-cache`
   (`ModelRepository.hfCacheDir()` → `ServerConfig.llamaCacheDir` → Rust), because
   Android has no usable `$HOME` and `hf_cache::get_cache_directory()` would
-  otherwise resolve to an unwritable path; and the Settings tab has a **Router
-  mode** toggle (`ServerSettings.routerMode`). Router mode threads
+  otherwise resolve to an unwritable path; and the **Router mode** toggle
+  (`ServerSettings.routerMode`) sits on the Manage tab above the model list,
+  where the two modes are mutually exclusive: router mode greys the single-model
+  picker, and while the node isn't settled (`Starting`/`Stopping`/`Running`)
+  both the toggle and the picker are disabled since the choice applies next
+  start. The list shows `Model.id` (filename minus `.gguf`), the router's `model`
+  value. Router mode threads
   `ServerConfig.modelsDir` to Rust, where `build_server_command` drops `-m` for
   `--models-dir`, `engine.rs` skips the model preflight, and `NodeState` carries
   a `router` flag so the UI/notification show "all models" instead of a file
