@@ -6,7 +6,7 @@
     <string name="start_node">Start Node</string>
     <string name="starting_node">Starting...</string>
     <string name="scanning_peers">Scanning for peers...</string>
-    <string name="mesh_started_solo">No mesh peers found — running on this device only</string>
+    <string name="mesh_started_solo">No mesh peers found</string>
     <string name="stopping_node">Stopping...</string>
 
     <string name="models">Models</string>
@@ -50,18 +50,23 @@
     <string name="tab_settings">Settings</string>
 
     <string name="mesh_peers_title">Nearby peers</string>
-    <string name="mesh_empty">No peers yet. Put the other phone on the same Wi-Fi and start its node, or add it below.</string>
+    <string name="mesh_empty">No peers yet. Put the other phone on the same Wi-Fi and start its
+        node, or add it below.</string>
     <string name="mesh_source_discovered">discovered</string>
     <string name="mesh_source_manual">manual</string>
     <string name="mesh_peer_in_use">in use</string>
     <string name="mesh_discoverable">Discoverable</string>
-    <string name="mesh_discoverable_hint">Advertise this phone on the LAN so other nodes can find it by name.</string>
+    <string name="mesh_discoverable_hint">Advertise this phone on the LAN so other nodes can find it
+        by name.</string>
     <string name="mesh_worker">Provide compute</string>
-    <string name="mesh_worker_hint">Run as an RPC worker so a coordinator can offload layers to this phone. Takes effect on the next start.</string>
+    <string name="mesh_worker_hint">Run as an RPC worker so a coordinator can offload layers to this
+        phone. Takes effect on the next start.</string>
     <string name="mesh_use_peers">Use nearby peers</string>
-    <string name="mesh_use_peers_hint">Offload layers to reachable peers the next time the node starts.</string>
+    <string name="mesh_use_peers_hint">Offload layers to reachable peers the next time the node
+        starts.</string>
     <string name="mesh_fallback_title">Fallback peers</string>
-    <string name="mesh_fallback_hint">One host or host:port per line, e.g. 192.168.1.42:50052. Used when mDNS discovery is blocked.</string>
+    <string name="mesh_fallback_hint">One host or host:port per line, e.g. 192.168.1.42:50052. Used
+        when mDNS discovery is blocked.</string>
     <string name="mesh_fallback_apply">Save</string>
     <string name="logs_empty">No log output yet. Start the node to see llama-server output.</string>
     <string name="metric_tok_s">tok/s</string>
