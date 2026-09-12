@@ -13,10 +13,11 @@ fi
 
 echo "Building llama.cpp at $(git -C "$LLAMA_DIR" rev-parse --short HEAD) ($(git -C "$LLAMA_DIR" log -1 --format=%cs))"
 
-# The Snapdragon preset ships with RPC off; turn it on so the build produces
-# llama-server with --rpc and the ggml-rpc-server peer binary.
+# The Snapdragon preset ships RPC and subprocess support off; turn both on so the
+# build produces a llama-server with --rpc / ggml-rpc-server and a router mode
+# able to spawn its per-model child processes.
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-python3 "$SCRIPT_DIR/scripts/enable_rpc.py" "$LLAMA_DIR"
+python3 "$SCRIPT_DIR/scripts/enable_features.py" "$LLAMA_DIR"
 
 if [ "${FORCE_UI:-0}" = "1" ] || [ -z "$(ls -A "$UI_DIST_DIR" 2>/dev/null || true)" ]; then
 	mkdir -p "$UI_DIST_DIR"

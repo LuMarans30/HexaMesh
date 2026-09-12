@@ -1,10 +1,14 @@
 #!/usr/bin/env python3
-"""Enable llama.cpp's RPC backend in the Snapdragon build preset.
+"""Enable the llama.cpp features HexaMesh needs in the Snapdragon build preset.
 
-The Snapdragon preset ships with ``GGML_RPC=OFF``, so the build produces neither
-a ``llama-server`` that accepts ``--rpc`` nor the ``ggml-rpc-server`` peer binary
-the app bundles. This seeds the generated CMake user preset from llama.cpp's docs
-copy (when absent) and turns the option on, so the local build and CI agree.
+The Snapdragon preset ships both off, so a stock build would produce:
+
+* a ``llama-server`` without ``--rpc`` and no ``ggml-rpc-server`` peer binary, and
+* a ``llama-server`` without subprocess support, which cannot run in router mode
+  (it starts, then refuses with "subprocess is not enabled on this build").
+
+This seeds the generated CMake user preset from llama.cpp's docs copy (when
+absent) and turns both options on, so the local build and CI agree.
 """
 
 import json
@@ -13,6 +17,10 @@ import shutil
 import sys
 
 PRESET = "arm64-android-snapdragon"
+FEATURES = {
+    "GGML_RPC": "ON",  # mesh peers and llama-server's `--rpc`
+    "LLAMA_SUBPROCESS": "ON",  # router mode's per-model child processes
+}
 
 
 def main() -> None:
@@ -30,7 +38,7 @@ def main() -> None:
 
     for preset in presets.get("configurePresets", []):
         if preset.get("name") == PRESET:
-            preset.setdefault("cacheVariables", {})["GGML_RPC"] = "ON"
+            preset.setdefault("cacheVariables", {}).update(FEATURES)
             break
     else:
         sys.exit(f"preset not found: {PRESET}")
@@ -38,7 +46,7 @@ def main() -> None:
     with open(dst, "w") as f:
         json.dump(presets, f, indent=4)
 
-    print(f"Enabled GGML_RPC in {os.path.abspath(dst)}")
+    print(f"Enabled {', '.join(FEATURES)} in {os.path.abspath(dst)}")
 
 
 if __name__ == "__main__":
