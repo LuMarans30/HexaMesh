@@ -129,7 +129,9 @@ Phase notes (the load-bearing bits):
   supervisor runs either role (`ServerRole.SERVER`/`RPC`, with a TCP liveness
   probe and a separate `rpc-server.log`). Discovery and meshing hand-off landed:
   `NsdDiscovery` browses `_hexamesh._tcp`, `NsdAdvertiser` publishes this device
-  (Discoverable toggle), peers publish `free_mem`/`total_mem` TXT, and
+  (Discoverable toggle) and re-registers on a timer to refresh its `free_mem` TXT
+  (quantized, because NSD can't update TXT in place), peers publish
+  `free_mem`/`total_mem` TXT, and
   `MeshViewModel` pings each peer over TCP (`tcpLatencies`, concurrent) so `--rpc`
   selection uses `isReachable` + `rankPeers`; peers already wired into the running
   node are marked `PeerStats.inUse` and skipped by the probe (reachable by
@@ -207,6 +209,10 @@ Phase notes (the load-bearing bits):
 - **NSD empty TXT:** a service record with no TXT attributes trips a framework
   bug (`NsdService: Key cannot be empty`). The advertiser always publishes
   `free_mem`/`total_mem`, so the record is never empty.
+- **NSD TXT refresh re-registers:** NSD has no in-place TXT update, so a changed
+  `free_mem` unregisters and re-registers the record, which briefly drops this
+  device from peer discovery. The advertised figure is quantized so this only
+  happens on a meaningful change, not on ordinary cache churn.
 - **Icons:** self-contained drawables only.
 - **Model list parity:** `isLoadableModel` mirrors llama.cpp's
   `load_from_models_dir` for top-level files — lowercase `.gguf` only, skipping

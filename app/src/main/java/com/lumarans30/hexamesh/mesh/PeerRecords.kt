@@ -83,6 +83,14 @@ internal fun splitHostPort(entry: String): Pair<String, String?>? =
 
 private fun Map<String, ByteArray>.longValue(key: String): Long? = this[key]?.toString(Charsets.UTF_8)?.trim()?.toLongOrNull()
 
+private const val MEMORY_PUBLISH_STEP = 256L * 1024 * 1024
+
+/**
+ * Rounds free memory down to a coarse step so ordinary cache churn doesn't change
+ * the TXT record and force an mDNS re-registration.
+ */
+fun quantizeMemory(bytes: Long?): Long? = bytes?.let { it / MEMORY_PUBLISH_STEP * MEMORY_PUBLISH_STEP }
+
 /**
  * TXT attributes advertising spare RAM. Unknown readings become 0 so the record
  * always has at least one attribute (an empty TXT record trips the NSD service).

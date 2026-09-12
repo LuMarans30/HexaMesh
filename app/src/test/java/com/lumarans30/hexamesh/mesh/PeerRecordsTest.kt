@@ -95,4 +95,14 @@ class PeerRecordsTest {
         assertEquals(3L, peer.stats.freeMemoryBytes)
         assertEquals(9L, peer.stats.totalMemoryBytes)
     }
+
+    @Test
+    fun `advertised free memory is quantized to a coarse step`() {
+        val step = 256L * 1024 * 1024
+
+        assertEquals(step, quantizeMemory(step + 5))
+        assertEquals(step * 4, quantizeMemory(step * 5 - 1))
+        assertEquals(0L, quantizeMemory(1L))
+        assertNull(quantizeMemory(null))
+    }
 }

@@ -14,6 +14,7 @@ import com.lumarans30.hexamesh.mesh.memoryAttributes
 import com.lumarans30.hexamesh.mesh.mergePeers
 import com.lumarans30.hexamesh.mesh.meshServiceName
 import com.lumarans30.hexamesh.mesh.parseFallbackPeers
+import com.lumarans30.hexamesh.mesh.quantizeMemory
 import com.lumarans30.hexamesh.mesh.rankPeers
 import com.lumarans30.hexamesh.mesh.tcpLatencies
 import com.lumarans30.hexamesh.mesh.withoutSelf
@@ -152,12 +153,17 @@ class MeshViewModel(
             launch {
                 discoverable.collectLatest { on ->
                     if (on) {
-                        val memory = withContext(Dispatchers.IO) { readMemoryInfo() }
                         advertiser
                             .advertise(
                                 name = meshServiceName(Build.MODEL),
                                 port = DEFAULT_RPC_PORT,
-                                attributes = memoryAttributes(memory?.availableBytes, memory?.totalBytes),
+                                attributes = {
+                                    val memory = withContext(Dispatchers.IO) { readMemoryInfo() }
+                                    memoryAttributes(
+                                        quantizeMemory(memory?.availableBytes),
+                                        memory?.totalBytes,
+                                    )
+                                },
                             ).collect { selfName.value = it }
                     } else {
                         selfName.value = null
