@@ -65,7 +65,10 @@ fun hexaMeshApp(
     val meshWorker by meshViewModel.worker.collectAsStateWithLifecycle()
     val meshUsePeers by meshViewModel.usePeers.collectAsStateWithLifecycle()
 
-    LaunchedEffect(nodeState) { meshViewModel.onNodeState(nodeState) }
+    LaunchedEffect(nodeState) {
+        meshViewModel.onNodeState(nodeState)
+        transferViewModel.setNodeRunning(nodeState is NodeState.Running)
+    }
 
     val manager =
         ManagerUiState(

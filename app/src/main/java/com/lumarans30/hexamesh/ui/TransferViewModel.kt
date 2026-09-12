@@ -30,6 +30,7 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import java.io.File
+import java.util.UUID
 
 /** Model library plus the download/import transfers that feed it. */
 data class TransferUiState(
@@ -59,6 +60,10 @@ class TransferViewModel(
     private var awaitingGrant = false
     private var grantPrompted = false
 
+    private var nodeRunning = false
+
+    private val completedWork = mutableSetOf<UUID>()
+
     private val downloadInfos =
         workManager.getWorkInfosForUniqueWorkFlow(ModelDownloadWorker.WORK_NAME)
 
@@ -86,20 +91,16 @@ class TransferViewModel(
     init {
         workManager.pruneWork()
         refreshModels()
-        viewModelScope.launch {
-            downloadInfos.collect { infos ->
-                if (infos.any { it.state == WorkInfo.State.SUCCEEDED }) onModelsChanged()
-            }
-        }
-        viewModelScope.launch {
-            importInfos.collect { infos ->
-                if (infos.any { it.state == WorkInfo.State.SUCCEEDED }) onModelsChanged()
-            }
-        }
+        viewModelScope.launch { downloadInfos.collect { onWorkInfos(it) } }
+        viewModelScope.launch { importInfos.collect { onWorkInfos(it) } }
     }
 
     fun refreshModels() {
         models.value = repository.list()
+    }
+
+    fun setNodeRunning(running: Boolean) {
+        nodeRunning = running
     }
 
     fun onResumed() {
@@ -204,8 +205,16 @@ class TransferViewModel(
         reloadRouter()
     }
 
-    /** Best-effort: ask a running router to re-scan its models directory. */
+    /** A completed transfer changes the library; handle each work id exactly once. */
+    private fun onWorkInfos(infos: List<WorkInfo>) {
+        val fresh = infos.filter { it.state == WorkInfo.State.SUCCEEDED && completedWork.add(it.id) }
+        if (fresh.isNotEmpty()) onModelsChanged()
+    }
+
+    /** Ask a running router to re-scan its models directory. */
     private fun reloadRouter() {
+        if (!nodeRunning) return
+
         viewModelScope.launch(Dispatchers.IO) {
             runCatching { ModelsClient(settings.port, apiKey).reload() }
         }

@@ -182,9 +182,11 @@ Phase notes (the load-bearing bits):
   escape hatch is typing `-m <path>` in Settings (`-m` is unlocked); the
   notification then names that model (`servedModelLabel` reads it back out of the
   args — `--alias`, else the `-m` filename, else `-hf`), while the Manage status
-  still reads "all models" because it does not track a forced mode. `ModelsClient.reload()` (`GET /models?reload=1`) runs from
-  `TransferViewModel` after an import/download/delete and on app resume, so a
-  model added to the folder while the router runs appears without a restart.
+  still reads "all models" because it does not track a forced mode.
+  `ModelsClient.reload()` (`GET /models?reload=1`) runs from `TransferViewModel`
+  after an import/download/delete and on app resume, so a model added to the folder
+  while the router runs appears without a restart; it is gated on the node running
+  and fires once per work id (WorkInfo keeps re-emitting completed work).
   **Verified on device** (Poco F7/Adreno, `LLAMA_SUBPROCESS=ON`):
   the router lists both models from the app's `models/` dir (a loose
   `mmproj-*.gguf` is ignored), `/v1/models` reports them `unloaded`, an on-demand
