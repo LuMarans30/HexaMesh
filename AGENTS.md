@@ -97,7 +97,7 @@ reason.
 | 2.5 | Custom launch args: editable defaults, locked required flags | ✅ landed |
 | 3 | Logs tab (local diagnostics only) | ✅ landed |
 | 4 | Mesh tab + per-peer logs | 🚧 coordinator offloads to peers; worker role + logs pending |
-| 5 | Router mode + HF cache (one listener, many models) | 🚧 router + `LLAMA_CACHE` landed and device-verified; reload endpoint + id-based models pending |
+| 5 | Router mode + HF cache (one listener, many models) | 🚧 router + cache + reload landed and device-verified; id-based models pending |
 
 Phase notes (the load-bearing bits):
 
@@ -158,13 +158,17 @@ Phase notes (the load-bearing bits):
   because `command.rs` `setsid`s the child and router-spawned instances inherit
   that group), so model grandchildren can no longer orphan a SIGKILLed router.
   Still open: download ownership (`POST /models` vs `ModelDownloadWorker`);
-  `SlotsClient` needs `?model=`, and nothing calls `/models?reload=1` or
-  `/models/load`, so imports need a restart; HF ids clash with the path-based
-  `Model`/repository. **Verified on device** (Poco F7/Adreno, `LLAMA_SUBPROCESS=ON`):
+  `SlotsClient` needs `?model=`; HF ids clash with the path-based
+  `Model`/repository. `ModelsClient.reload()` (`GET /models?reload=1`) runs from
+  `TransferViewModel` after an import/download/delete and on app resume, so a
+  model added to the folder while the router runs appears without a restart.
+  **Verified on device** (Poco F7/Adreno, `LLAMA_SUBPROCESS=ON`):
   the router lists both models from the app's `models/` dir (a loose
   `mmproj-*.gguf` is ignored), `/v1/models` reports them `unloaded`, an on-demand
   chat loads a second `libllamaserver.so` (topology app → router → instance) and
-  returns a completion, and Stop takes the whole group down cleanly.
+  returns a completion, and Stop takes the whole group down cleanly. The reload
+  was checked the same way: a pushed `.gguf` showed up in `/v1/models` after an
+  app resume and disappeared again after removal.
 
 ## Gotchas
 
@@ -197,8 +201,8 @@ Phase notes (the load-bearing bits):
   there), so starting the node from Manage right after launch meshes with
   nothing.
 - In router mode `SlotsClient` polls `/slots` without `?model=`, so tok/s stays
-  blank, and nothing calls `/models?reload=1` or `/models/load`, so a model
-  imported while the router runs is not listed until the next restart.
+  blank. `/models?reload=1` is wired (`ModelsClient`), but `/models/load` is not:
+  the app never loads a model over HTTP — clients pick one per request.
 - `bridge/Engine.kt` only exposes `start/stop/pollStatus` — no logs/metrics channel.
 
 ## Decisions (do not re-litigate)
