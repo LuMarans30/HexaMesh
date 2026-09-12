@@ -1,22 +1,29 @@
 package com.lumarans30.hexamesh.ui
 
 import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.selection.selectable
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.NavigationBar
-import androidx.compose.material3.NavigationBarItem
+import androidx.compose.material3.NavigationBarDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
@@ -34,8 +41,11 @@ import androidx.compose.runtime.saveable.rememberSaveableStateHolder
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.lumarans30.hexamesh.R
@@ -196,14 +206,19 @@ private fun hexaMeshShell(
             )
         },
         bottomBar = {
-            Column {
-                nodeActionBar(
-                    state = manager.node,
-                    scanning = manager.scanning,
-                    onStart = managerActions.onStart,
-                    onStop = managerActions.onStop,
-                )
-                tabBar(selected = tab, onSelect = { tab = it })
+            Surface(
+                color = NavigationBarDefaults.containerColor,
+                shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp),
+            ) {
+                Column {
+                    nodeActionBar(
+                        state = manager.node,
+                        scanning = manager.scanning,
+                        onStart = managerActions.onStart,
+                        onStop = managerActions.onStop,
+                    )
+                    tabBar(selected = tab, onSelect = { tab = it })
+                }
             }
         },
     ) { innerPadding ->
@@ -251,47 +266,64 @@ private fun nodeActionBar(
             else -> controlsEnabled(state)
         }
 
-    Surface(tonalElevation = 3.dp, modifier = Modifier.fillMaxWidth()) {
-        Button(
-            onClick = {
-                when {
-                    busy -> Unit
-                    running -> onStop()
-                    else -> onStart()
-                }
-            },
-            enabled = enabled,
+    Surface(
+        color = Color.Transparent,
+        modifier = Modifier.fillMaxWidth(),
+    ) {
+        Box(
             modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
+            contentAlignment = Alignment.Center,
         ) {
-            when {
-                busy -> {
-                    CircularProgressIndicator(
-                        modifier = Modifier.size(18.dp),
-                        strokeWidth = 2.dp,
-                        color = LocalContentColor.current,
-                    )
-                    Spacer(Modifier.width(12.dp))
-                    Text(
-                        stringResource(
-                            when {
-                                scanning -> R.string.scanning_peers
-                                state is NodeState.Starting -> R.string.starting_node
-                                else -> R.string.stopping_node
-                            },
-                        ),
-                    )
-                }
+            Button(
+                onClick = {
+                    when {
+                        busy -> Unit
+                        running -> onStop()
+                        else -> onStart()
+                    }
+                },
+                enabled = enabled,
+                colors =
+                    if (running) {
+                        ButtonDefaults.buttonColors(
+                            containerColor = MaterialTheme.colorScheme.error,
+                            contentColor = MaterialTheme.colorScheme.onError,
+                        )
+                    } else {
+                        ButtonDefaults.buttonColors()
+                    },
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                when {
+                    busy -> {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(18.dp),
+                            strokeWidth = 2.dp,
+                            color = LocalContentColor.current,
+                        )
+                        Spacer(Modifier.width(12.dp))
+                        Text(
+                            stringResource(
+                                when {
+                                    scanning -> R.string.scanning_peers
+                                    state is NodeState.Starting -> R.string.starting_node
+                                    else -> R.string.stopping_node
+                                },
+                            ),
+                        )
+                    }
 
-                running -> {
-                    Icon(painter = painterResource(R.drawable.ic_stop), contentDescription = null)
-                    Spacer(Modifier.width(12.dp))
-                    Text(stringResource(R.string.stop_node))
-                }
+                    running -> {
+                        Icon(painter = painterResource(R.drawable.ic_stop), contentDescription = null)
+                        Spacer(Modifier.width(12.dp))
+                        Text(stringResource(R.string.stop_node))
+                    }
 
-                else -> {
-                    Icon(painter = painterResource(R.drawable.ic_play), contentDescription = null)
-                    Spacer(Modifier.width(12.dp))
-                    Text(stringResource(R.string.start_node))
+                    else -> {
+                        Icon(painter = painterResource(R.drawable.ic_play), contentDescription = null)
+                        Spacer(Modifier.width(12.dp))
+                        Text(stringResource(R.string.start_node))
+                    }
                 }
             }
         }
@@ -303,19 +335,42 @@ private fun tabBar(
     selected: HexaTab,
     onSelect: (HexaTab) -> Unit,
 ) {
-    NavigationBar {
+    Row(
+        modifier = Modifier.fillMaxWidth().navigationBarsPadding().padding(horizontal = 8.dp, vertical = 6.dp),
+    ) {
         HexaTab.entries.forEach { tab ->
-            NavigationBarItem(
-                selected = tab == selected,
-                onClick = { onSelect(tab) },
-                icon = {
+            val isSelected = tab == selected
+            val container = if (isSelected) MaterialTheme.colorScheme.primaryContainer else Color.Transparent
+            val content = if (isSelected) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurfaceVariant
+
+            Box(
+                modifier = Modifier.weight(1f),
+                contentAlignment = Alignment.Center,
+            ) {
+                Column(
+                    modifier =
+                        Modifier
+                            .clip(RoundedCornerShape(20.dp))
+                            .background(container)
+                            .selectable(selected = isSelected, role = Role.Tab, onClick = { onSelect(tab) })
+                            .padding(horizontal = 16.dp, vertical = 8.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                ) {
                     Icon(
                         painter = painterResource(tab.iconRes),
                         contentDescription = null,
+                        tint = content,
+                        modifier = Modifier.size(24.dp),
                     )
-                },
-                label = { Text(stringResource(tab.labelRes)) },
-            )
+                    Spacer(Modifier.height(4.dp))
+                    Text(
+                        text = stringResource(tab.labelRes),
+                        color = content,
+                        style = MaterialTheme.typography.labelLarge,
+                        maxLines = 1,
+                    )
+                }
+            }
         }
     }
 }
