@@ -131,8 +131,12 @@ class MeshViewModel(
         if (_peers.value.any { isReachable(it, System.currentTimeMillis()) }) return MeshStart.Peers
 
         start()
-        // With candidates in hand only the ping sweep is pending, so a short window
-        // suffices; with nothing seen yet the wait is on mDNS itself.
+        // The periodic sweep can be up to PING_INTERVAL_MS away, so probe the known
+        // candidates now. That probe decides when candidates exist, and with nothing seen
+        // yet the wait is on mDNS, which needs a longer window.
+        val targets = merged.value.filterNot { it.endpoint in wired.value }
+        if (targets.isNotEmpty()) latencies.value = tcpLatencies(targets)
+
         val timeoutMs = if (merged.value.isEmpty()) DISCOVERY_WAIT_MS else PING_WAIT_MS
 
         _scanning.value = true
