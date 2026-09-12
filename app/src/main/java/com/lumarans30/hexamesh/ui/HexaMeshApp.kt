@@ -24,6 +24,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -63,6 +64,8 @@ fun hexaMeshApp(
     val meshDiscoverable by meshViewModel.discoverable.collectAsStateWithLifecycle()
     val meshWorker by meshViewModel.worker.collectAsStateWithLifecycle()
     val meshUsePeers by meshViewModel.usePeers.collectAsStateWithLifecycle()
+
+    LaunchedEffect(nodeState) { meshViewModel.onNodeState(nodeState) }
 
     val manager =
         ManagerUiState(

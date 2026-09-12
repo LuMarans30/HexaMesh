@@ -25,6 +25,7 @@ fun isReachable(
     nowMs: Long,
     maxAgeMs: Long = PEER_TTL_MS,
 ): Boolean {
+    if (peer.stats.inUse) return true
     if (peer.stats.latencyMs == null) return false
     if (peer.source == PeerSource.Manual) return true
     val seen = peer.stats.lastSeenAtMs ?: return false

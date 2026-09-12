@@ -15,8 +15,9 @@ import com.lumarans30.hexamesh.mesh.mergePeers
 import com.lumarans30.hexamesh.mesh.meshServiceName
 import com.lumarans30.hexamesh.mesh.parseFallbackPeers
 import com.lumarans30.hexamesh.mesh.rankPeers
-import com.lumarans30.hexamesh.mesh.tcpLatencyMs
+import com.lumarans30.hexamesh.mesh.tcpLatencies
 import com.lumarans30.hexamesh.mesh.withoutSelf
+import com.lumarans30.hexamesh.node.NodeState
 import com.lumarans30.hexamesh.platform.MeshSettings
 import com.lumarans30.hexamesh.platform.NsdAdvertiser
 import com.lumarans30.hexamesh.platform.NsdDiscovery
@@ -24,16 +25,15 @@ import com.lumarans30.hexamesh.platform.ServerSettings
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.combine
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import kotlinx.coroutines.withTimeoutOrNull
 import kotlin.time.Duration.Companion.milliseconds
 
 /** Discovers mesh peers on the LAN, pings them, and merges the fallback list. */
@@ -64,6 +64,8 @@ class MeshViewModel(
     private val _worker = MutableStateFlow(serverSettings.role == ServerRole.RPC)
     val worker: StateFlow<Boolean> = _worker.asStateFlow()
 
+    private val wired = MutableStateFlow<Set<String>>(emptySet())
+
     private var observation: Job? = null
 
     fun start() {
@@ -92,14 +94,23 @@ class MeshViewModel(
      * is reachable. Ranked and capped at [MAX_RPC_SERVERS]; call at start time.
      */
     fun rpcEndpoints(): String? {
-        if (!usePeers.value || _worker.value) return null
+        if (!usePeers.value || _worker.value) {
+            wired.value = emptySet()
+            return null
+        }
 
         val now = System.currentTimeMillis()
-        return rankPeers(_peers.value)
-            .filter { isReachable(it, now) }
-            .take(MAX_RPC_SERVERS)
-            .takeIf { it.isNotEmpty() }
-            ?.joinToString(",") { "${it.host}:${it.port}" }
+        val selected =
+            rankPeers(_peers.value)
+                .filter { isReachable(it, now) }
+                .take(MAX_RPC_SERVERS)
+
+        wired.value = selected.mapTo(mutableSetOf()) { it.endpoint }
+        return selected.takeIf { it.isNotEmpty() }?.joinToString(",") { "${it.host}:${it.port}" }
+    }
+
+    fun onNodeState(state: NodeState) {
+        if (state is NodeState.Stopped || state is NodeState.Error) wired.value = emptySet()
     }
 
     private suspend fun observe() =
@@ -111,26 +122,29 @@ class MeshViewModel(
             }
 
             launch {
-                combine(merged, latencies) { list, measured ->
+                combine(merged, latencies, wired) { list, measured, wiredSet ->
                     list.map { peer ->
-                        peer.copy(stats = peer.stats.copy(latencyMs = measured[peer.endpoint]))
+                        val inUse = peer.endpoint in wiredSet
+                        peer.copy(
+                            stats =
+                                peer.stats.copy(
+                                    latencyMs = if (inUse) null else measured[peer.endpoint],
+                                    inUse = inUse,
+                                ),
+                        )
                     }
                 }.collect { _peers.value = it }
             }
 
             launch {
-                while (isActive) {
-                    val targets = merged.value
-                    if (targets.isNotEmpty()) {
-                        latencies.value =
-                            withContext(Dispatchers.IO) {
-                                targets.associate {
-                                    it.endpoint to tcpLatencyMs(it.host, it.port)
-                                }
-                            }
-                    }
-                    withTimeoutOrNull(PING_INTERVAL_MS.milliseconds) {
-                        merged.first { it != targets }
+                combine(merged, wired) { list, wiredSet ->
+                    list.filterNot { it.endpoint in wiredSet }
+                }.collectLatest { targets ->
+                    while (this@launch.isActive) {
+                        if (targets.isNotEmpty()) {
+                            latencies.value = tcpLatencies(targets)
+                        }
+                        delay(PING_INTERVAL_MS.milliseconds)
                     }
                 }
             }

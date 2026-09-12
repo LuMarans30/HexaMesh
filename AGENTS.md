@@ -130,8 +130,10 @@ Phase notes (the load-bearing bits):
   probe and a separate `rpc-server.log`). Discovery and meshing hand-off landed:
   `NsdDiscovery` browses `_hexamesh._tcp`, `NsdAdvertiser` publishes this device
   (Discoverable toggle), peers publish `free_mem`/`total_mem` TXT, and
-  `MeshViewModel` pings each peer over TCP (`tcpLatencyMs`) so `--rpc` selection
-  uses `isReachable` + `rankPeers`. Discovery is owned by `MeshViewModel` and run
+  `MeshViewModel` pings each peer over TCP (`tcpLatencies`, concurrent) so `--rpc`
+  selection uses `isReachable` + `rankPeers`; peers already wired into the running
+  node are marked `PeerStats.inUse` and skipped by the probe (reachable by
+  construction, latency unknown). Discovery is owned by `MeshViewModel` and run
   from the app-foreground lifecycle (`MainActivity.onStart`/`onStop`), so peers are
   known on any tab and `--rpc` injection no longer requires the Mesh tab to have
   been opened; pings fire on peer-set changes, not only on the 5s tick. `usePeers`
@@ -216,10 +218,10 @@ Phase notes (the load-bearing bits):
 
 - No `--tensor-split`: llama.cpp splits the model across the local device and
   the `--rpc` peers on its own.
-- The latency probe opens a TCP connection to the peer's RPC port, which is a
-  single-client server; while llama.cpp holds the connection a probe only lands
-  in the accept backlog. It has not disturbed a clean session, but a dedicated
-  health port would be sturdier.
+- The latency probe opens a TCP connection to the peer's RPC port, a
+  single-client server. The probe now skips peers the running node has wired in,
+  so it no longer measures its own accept backlog; a dedicated health port would
+  still be sturdier for probing while any node holds the port.
 - Discovery is foreground-only and mDNS is not instant: an immediate Start right
   after launch can still race the first browse + ping window (~1s) and inject no
   peers. Discovery stops when the app is backgrounded, so a node started while the

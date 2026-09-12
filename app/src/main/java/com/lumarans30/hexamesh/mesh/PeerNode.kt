@@ -25,4 +25,5 @@ data class PeerStats(
     val totalMemoryBytes: Long? = null,
     val latencyMs: Long? = null,
     val lastSeenAtMs: Long? = null,
+    val inUse: Boolean = false,
 )

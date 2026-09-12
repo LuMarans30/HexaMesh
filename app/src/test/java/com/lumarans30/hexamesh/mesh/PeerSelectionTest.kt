@@ -14,6 +14,7 @@ private fun peer(
     latencyMs: Long? = 10L,
     seenAgoMs: Long = 0L,
     port: Int = 50052,
+    inUse: Boolean = false,
 ) = PeerNode(
     id = id,
     name = id,
@@ -24,6 +25,7 @@ private fun peer(
             freeMemoryBytes = freeGb?.times(GB),
             latencyMs = latencyMs,
             lastSeenAtMs = NOW - seenAgoMs,
+            inUse = inUse,
         ),
 )
 
@@ -58,6 +60,16 @@ class PeerSelectionTest {
         assertTrue(isReachable(pinged, NOW))
         assertFalse(isReachable(unpinged, NOW))
         assertFalse(isReachable(stale, NOW))
+    }
+
+    @Test
+    fun `a wired peer is reachable without a latency reading`() {
+        val wired = peer("wired", freeGb = 4, latencyMs = null, inUse = true)
+        val staleWired =
+            peer("stale-wired", freeGb = 4, latencyMs = null, seenAgoMs = PEER_TTL_MS + 1, inUse = true)
+
+        assertTrue(isReachable(wired, NOW))
+        assertTrue(isReachable(staleWired, NOW))
     }
 
     @Test

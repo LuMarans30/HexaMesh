@@ -1,5 +1,9 @@
 package com.lumarans30.hexamesh.mesh
 
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
 import java.net.InetSocketAddress
 import java.net.Socket
 
@@ -17,3 +21,13 @@ fun tcpLatencyMs(
         (System.nanoTime() - start) / NANOS_PER_MILLI
     }.getOrNull()
 }
+
+/** Probes every peer concurrently, keyed by endpoint; null means unreachable. */
+suspend fun tcpLatencies(peers: List<PeerNode>): Map<String, Long?> =
+    coroutineScope {
+        peers
+            .map { peer ->
+                async(Dispatchers.IO) { peer.endpoint to tcpLatencyMs(peer.host, peer.port) }
+            }.awaitAll()
+            .toMap()
+    }
