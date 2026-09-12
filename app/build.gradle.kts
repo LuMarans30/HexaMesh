@@ -18,8 +18,8 @@ android {
         applicationId = "com.lumarans30.hexamesh"
         minSdk = 34
         targetSdk = 36
-        versionCode = 8
-        versionName = "0.9.0"
+        versionCode = 9
+        versionName = "0.10.0"
         ndk {
             abiFilters.add("arm64-v8a")
         }
