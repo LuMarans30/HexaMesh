@@ -26,6 +26,7 @@ import com.lumarans30.hexamesh.platform.ServerSettings
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -174,7 +175,7 @@ class MeshViewModel(
                 combine(merged, wired) { list, wiredSet ->
                     list.filterNot { it.endpoint in wiredSet }
                 }.collectLatest { targets ->
-                    while (this@launch.isActive) {
+                    while (currentCoroutineContext().isActive) {
                         if (targets.isNotEmpty()) {
                             latencies.value = tcpLatencies(targets)
                         }
