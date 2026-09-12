@@ -1,0 +1,10 @@
+root = true
+
+[*]
+charset = utf-8
+end_of_line = lf
+trim_trailing_whitespace = true
+
+[*.{kt,kts}]
+max_line_length = 140
+ktlint_standard_filename = disabled

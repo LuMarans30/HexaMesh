@@ -1,0 +1,29 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "Format Kotlin/Gradle (Spotless)",
+            "type": "shell",
+            "command": "./gradlew spotlessApply",
+            "problemMatcher": []
+        },
+        {
+            "label": "Format Rust (cargo fmt)",
+            "type": "shell",
+            "command": "cargo fmt --manifest-path hexa_mesh_core/Cargo.toml",
+            "problemMatcher": []
+        },
+        {
+            "label": "Format all",
+            "dependsOrder": "sequence",
+            "dependsOn": ["Format Kotlin/Gradle (Spotless)", "Format Rust (cargo fmt)"],
+            "problemMatcher": []
+        },
+        {
+            "label": "Check formatting",
+            "type": "shell",
+            "command": "./gradlew spotlessCheck && cargo fmt --manifest-path hexa_mesh_core/Cargo.toml --check",
+            "problemMatcher": []
+        }
+    ]
+}
