@@ -73,9 +73,9 @@ and watches the server over JNI.
   errors on launch`.
 - **Comments:** only when the code can't explain itself. Keep names and
   structure self-explanatory instead of narrating what a line does.
-- **Pure logic + tests:** keep `canLoad`, `canDelete`, `selectionEnabled`,
-  `formatSize`, and download/import parsing as pure functions with JVM unit
-  tests. Preserve that separation.
+- **Pure logic + tests:** keep `controlsEnabled`, `formatSize`, `isLoadableModel`,
+  and download/import parsing as pure functions with JVM unit tests. Preserve
+  that separation.
 - **No heavy deps, no icon libraries.** Icons are self-contained vector
   drawables (`res/drawable/ic_*.xml`). Do **not** add
   `material-icons-extended`; `material-icons-core` is not on the classpath.
@@ -97,7 +97,7 @@ reason.
 | 2.5 | Custom launch args: editable defaults, locked required flags | ✅ landed |
 | 3 | Logs tab (local diagnostics only) | ✅ landed |
 | 4 | Mesh tab + per-peer logs | 🚧 coordinator offloads to peers; worker role + logs pending |
-| 5 | Router mode + HF cache (one listener, many models) | 🚧 router + cache + reload landed and device-verified; id-based models pending |
+| 5 | Router-only: one listener, every model, HF cache | ✅ landed and device-verified |
 
 Phase notes (the load-bearing bits):
 
@@ -146,25 +146,21 @@ Phase notes (the load-bearing bits):
   router enforces the API key and children listen only on loopback. Child
   stdout/stderr is forwarded into the router log with a `[port]` prefix, so
   `llama-server.log` still captures everything (port-tagged, not model-tagged).
-  Steps 1–2 landed: `LLAMA_CACHE` is pinned to `<externalFilesDir>/hf-cache`
-  (`ModelRepository.hfCacheDir()` → `ServerConfig.llamaCacheDir` → Rust), because
-  Android has no usable `$HOME` and `hf_cache::get_cache_directory()` would
-  otherwise resolve to an unwritable path; and the **Router mode** toggle
-  (`ServerSettings.routerMode`) sits on the Manage tab above the model list,
-  where the two modes are mutually exclusive: router mode greys the single-model
-  picker, and while the node isn't settled (`Starting`/`Stopping`/`Running`)
-  both the toggle and the picker are disabled since the choice applies next
-  start. The list shows `Model.id` (filename minus `.gguf`), the router's `model`
-  value. Router mode threads
-  `ServerConfig.modelsDir` to Rust, where `build_server_command` drops `-m` for
-  `--models-dir`, `engine.rs` skips the model preflight, and `NodeState` carries
-  a `router` flag so the UI/notification show "all models" instead of a file
-  name. Shutdown now signals the child's **process group** (`kill(-pid)`, valid
-  because `command.rs` `setsid`s the child and router-spawned instances inherit
-  that group), so model grandchildren can no longer orphan a SIGKILLed router.
-  Still open: download ownership (`POST /models` vs `ModelDownloadWorker`);
-  `SlotsClient` needs `?model=`; HF ids clash with the path-based
-  `Model`/repository. `ModelsClient.reload()` (`GET /models?reload=1`) runs from
+  Steps 1–3 landed: the app is **router-only** — it always launches
+  `llama-server` with `--models-dir <models dir>` and never `-m`, and there is no
+  per-model selection or mode toggle. `LLAMA_CACHE` is pinned to
+  `<externalFilesDir>/hf-cache` (`ModelRepository.hfCacheDir()` →
+  `ServerConfig.llamaCacheDir` → Rust), because Android has no usable `$HOME` and
+  `hf_cache::get_cache_directory()` would otherwise resolve to an unwritable
+  path. The Manage list is a plain library — `Model.id` (filename minus `.gguf`,
+  the router's `model` value), size and delete, no radio — and `NodeState`
+  carries only `serverUrl`. Shutdown signals the child's **process group**
+  (`kill(-pid)`, valid because `command.rs` `setsid`s the child and router-spawned
+  instances inherit that group), so model grandchildren can no longer orphan a
+  SIGKILLed router. Still open: download ownership (`POST /models` vs
+  `ModelDownloadWorker`); `SlotsClient` needs `?model=`; and single-model mode is
+  gone, so a client must send a valid model id (a hardcoded or missing one gets a
+  400). `ModelsClient.reload()` (`GET /models?reload=1`) runs from
   `TransferViewModel` after an import/download/delete and on app resume, so a
   model added to the folder while the router runs appears without a restart.
   **Verified on device** (Poco F7/Adreno, `LLAMA_SUBPROCESS=ON`):
@@ -233,16 +229,15 @@ Phase notes (the load-bearing bits):
    advertisement by the registered instance name. Manual fallback peers never
    expire; discovered ones lapse after `PEER_TTL_MS`.
 6. **Launch args:** one text field of editable flags, the single source of truth,
-   port included (`--port`, default 8080). The app always injects `-m`, `--host`,
-   `--api-key`, `--device` and strips those (plus their values) if the user types
-   them, so the app-owned values always win. Rust builds only those required args;
-   everything else — port included — arrives via `ServerConfig.extraArgs`
-   (newline-joined). The app parses `--port` back out (`parseLaunchPort`) to drive
-   the health probe and the LAN URL. `--rpc` is app-owned too: the app strips a
-   user-typed one and injects the reachable mesh peers (`ServerConfig.rpcServers`)
-   only when the node starts. `--models-dir` is app-owned the same way, and `-m`
-   is injected only in single-model mode: with router mode on (phase 5) the
-   directory is passed instead and `-m` is dropped.
+   port included (`--port`, default 8080). The app injects `--host`, `--api-key`,
+   `--device`, `--rpc` and `--models-dir`, and strips those (plus their values)
+   as well as `-m`/`--model` if the user types them, so the app-owned values
+   always win (`-m` is stripped because the node is router-only). Rust builds only
+   those required args; everything else — port included — arrives via
+   `ServerConfig.extraArgs` (newline-joined). The app parses `--port` back out
+   (`parseLaunchPort`) to drive the health probe and the LAN URL. `--rpc` is
+   app-owned too: the app strips a user-typed one and injects the reachable mesh
+   peers (`ServerConfig.rpcServers`) only when the node starts.
 
 Open questions (add new ones below instead of reopening the above):
 
