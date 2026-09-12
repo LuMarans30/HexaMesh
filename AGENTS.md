@@ -158,9 +158,11 @@ Phase notes (the load-bearing bits):
   (`kill(-pid)`, valid because `command.rs` `setsid`s the child and router-spawned
   instances inherit that group), so model grandchildren can no longer orphan a
   SIGKILLed router. Still open: download ownership (`POST /models` vs
-  `ModelDownloadWorker`); `SlotsClient` needs `?model=`; and single-model mode is
-  gone, so a client must send a valid model id (a hardcoded or missing one gets a
-  400). `ModelsClient.reload()` (`GET /models?reload=1`) runs from
+  `ModelDownloadWorker`); `SlotsClient` needs `?model=`; and router clients must
+  send a valid model id (a hardcoded or missing one gets a 400). The single-model
+  escape hatch is typing `-m <path>` in Settings (`-m` is unlocked), though the
+  Manage status still reads "all models" because the UI does not track a forced
+  mode. `ModelsClient.reload()` (`GET /models?reload=1`) runs from
   `TransferViewModel` after an import/download/delete and on app resume, so a
   model added to the folder while the router runs appears without a restart.
   **Verified on device** (Poco F7/Adreno, `LLAMA_SUBPROCESS=ON`):
@@ -230,14 +232,15 @@ Phase notes (the load-bearing bits):
    expire; discovered ones lapse after `PEER_TTL_MS`.
 6. **Launch args:** one text field of editable flags, the single source of truth,
    port included (`--port`, default 8080). The app injects `--host`, `--api-key`,
-   `--device`, `--rpc` and `--models-dir`, and strips those (plus their values)
-   as well as `-m`/`--model` if the user types them, so the app-owned values
-   always win (`-m` is stripped because the node is router-only). Rust builds only
-   those required args; everything else — port included — arrives via
-   `ServerConfig.extraArgs` (newline-joined). The app parses `--port` back out
-   (`parseLaunchPort`) to drive the health probe and the LAN URL. `--rpc` is
-   app-owned too: the app strips a user-typed one and injects the reachable mesh
-   peers (`ServerConfig.rpcServers`) only when the node starts.
+   `--device`, `--rpc` and `--models-dir` and strips those (plus their values) if
+   the user types them, so the app-owned values always win. `-m`/`--model` are
+   **not** locked: typing one pins a single model, which makes `--models-dir`
+   inert and serves just that file (llama.cpp is single-model whenever
+   `model.path` is set). Rust builds only those required args; everything else —
+   `-m` included — arrives via `ServerConfig.extraArgs` (newline-joined). The app
+   parses `--port` back out (`parseLaunchPort`) to drive the health probe and the
+   LAN URL. `--rpc` is app-owned too: the app strips a user-typed one and injects
+   the reachable mesh peers (`ServerConfig.rpcServers`) only when the node starts.
 
 Open questions (add new ones below instead of reopening the above):
 
