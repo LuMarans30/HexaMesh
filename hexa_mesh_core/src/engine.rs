@@ -86,7 +86,10 @@ impl Supervisor {
         label: &'static str,
         probe: Probe,
     ) -> Result<Self, String> {
-        let needs_model = !config.is_rpc();
+        // Router mode has no single `-m`; llama-server loads models from
+        // `--models-dir` on demand, so there is no model path to validate.
+        let router = !config.models_dir.is_empty();
+        let needs_model = !config.is_rpc() && !router;
         if !exe.exists() || (needs_model && !Path::new(&config.model_path).exists()) {
             return Err(format!(
                 "Pre-conditions failed (missing binary or model). exe={}, model={}",
@@ -160,8 +163,11 @@ impl Supervisor {
         let pid = self.child.id() as libc::pid_t;
         info!("Terminating child process {pid}");
 
+        // The child is a session leader (see `command.rs`), so its pid is also
+        // its process group: signal the group to also reach any model instances
+        // a router-spawned llama-server created.
         unsafe {
-            libc::kill(pid, libc::SIGTERM);
+            libc::kill(-pid, libc::SIGTERM);
         }
 
         let deadline = Instant::now() + TERM_GRACE;
@@ -174,7 +180,9 @@ impl Supervisor {
         }
 
         warn!("Child {pid} failed to exit within grace period. Escalating to SIGKILL.");
-        let _ = self.child.kill();
+        unsafe {
+            libc::kill(-pid, libc::SIGKILL);
+        }
         let _ = self.child.wait();
     }
 

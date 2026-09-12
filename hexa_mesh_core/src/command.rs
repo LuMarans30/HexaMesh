@@ -11,12 +11,17 @@ use crate::config::ServerConfig;
 pub fn build_server_command(exe: &Path, config: &ServerConfig) -> Command {
     let mut cmd = base_command(exe, config);
 
-    let mut args: Vec<String> = vec![
-        "--host".into(),
-        "0.0.0.0".into(),
-        "-m".into(),
-        config.model_path.clone(),
-    ];
+    let mut args: Vec<String> = vec!["--host".into(), "0.0.0.0".into()];
+
+    // Router mode: no `-m`, so llama-server loads models from `--models-dir` on
+    // demand and forwards each request to the matching instance.
+    if config.models_dir.is_empty() {
+        args.push("-m".into());
+        args.push(config.model_path.clone());
+    } else {
+        args.push("--models-dir".into());
+        args.push(config.models_dir.clone());
+    }
 
     if !config.api_key.is_empty() {
         args.push("--api-key".into());

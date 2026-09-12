@@ -36,6 +36,7 @@ class NodeControllerTest {
                     nativeLibDir = "/lib",
                     cacheDir = "/cache",
                     llamaCacheDir = "/cache/hf",
+                    modelsDir = "/models",
                     apiKey = "key",
                     serverDiedMessage = "server died",
                     locks = locks,
@@ -80,6 +81,7 @@ class NodeControllerTest {
         assertEquals("/lib", config.nativeLibDir)
         assertEquals("/cache", config.cacheDir)
         assertEquals("/cache/hf", config.llamaCacheDir)
+        assertEquals("", config.modelsDir)
         assertEquals("key", config.apiKey)
         assertEquals(8080, config.port)
 
@@ -264,6 +266,26 @@ class NodeControllerTest {
         assertEquals(1, engine.stopCount)
     }
 
+    @Test
+    fun `router mode starts with the models dir and no model`() = runTest {
+        val controller = newController()
+        settings.routerModeValue = true
+        engine.status = EngineStatus(EngineStatus.RUNNING, "ready")
+
+        controller.applyModel("/models/a.gguf")
+        runCurrent()
+
+        val config = engine.started.single()
+        assertEquals("", config.modelPath)
+        assertEquals("/models", config.modelsDir)
+
+        val running = controller.state.value as NodeState.Running
+        assertTrue(running.router)
+        assertEquals("/models", running.modelPath)
+
+        controller.unload()
+    }
+
     private class FakeLocks : Locks {
         var acquires = 0
         var releases = 0
@@ -281,6 +303,7 @@ class NodeControllerTest {
         var portValue: Int = 8080,
         var launchArgsValue: List<String> = emptyList(),
         var roleValue: String = ServerRole.SERVER,
+        var routerModeValue: Boolean = false,
     ) : NodeSettings {
         override val port: Int
             get() = portValue
@@ -290,6 +313,9 @@ class NodeControllerTest {
 
         override val role: String
             get() = roleValue
+
+        override val routerMode: Boolean
+            get() = routerModeValue
     }
 
     private class FakeEngine : Engine {

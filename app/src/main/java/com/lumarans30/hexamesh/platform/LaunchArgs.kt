@@ -1,11 +1,13 @@
 package com.lumarans30.hexamesh.platform
 
 /**
- * Flags the app always injects (model, host, API key, device). Anything the user
- * types matching one of these is stripped so the app-owned value always wins.
- * The port is not here: it lives in the args as `--port` and the app parses it.
+ * Flags the app always injects (model, host, API key, device, RPC peers, models
+ * directory). Anything the user types matching one of these is stripped so the
+ * app-owned value always wins. The port is not here: it lives in the args as
+ * `--port` and the app parses it.
  */
-val LOCKED_LAUNCH_FLAGS = setOf("-m", "--model", "--host", "--api-key", "--device", "--rpc")
+val LOCKED_LAUNCH_FLAGS =
+    setOf("-m", "--model", "--host", "--api-key", "--device", "--rpc", "--models-dir")
 
 /** Editable defaults, port included. `-ngl` assumes the GPU backend. */
 const val DEFAULT_LAUNCH_ARGS = "--port 8080 --slots -fa on -t 6 -ub 16 --no-warmup -ngl 99"

@@ -61,6 +61,7 @@ fun hexaMeshApp(
     val nodeState by nodeViewModel.state.collectAsStateWithLifecycle()
     val transfer by transferViewModel.uiState.collectAsStateWithLifecycle()
     val launchArgs by settingsViewModel.launchArgs.collectAsStateWithLifecycle()
+    val routerMode by settingsViewModel.routerMode.collectAsStateWithLifecycle()
     val logLines by logsViewModel.lines.collectAsStateWithLifecycle()
     val nodeMetrics by logsViewModel.metrics.collectAsStateWithLifecycle()
     val meshPeers by meshViewModel.peers.collectAsStateWithLifecycle()
@@ -122,7 +123,9 @@ fun hexaMeshApp(
         state = state,
         actions = actions,
         launchArgs = launchArgs,
+        routerMode = routerMode,
         onApplySettings = settingsViewModel::apply,
+        onRouterModeChange = settingsViewModel::setRouterMode,
         logLines = logLines,
         nodeMetrics = nodeMetrics,
         observeLogs = logsViewModel::observe,
@@ -148,7 +151,9 @@ private fun hexaMeshShell(
     state: ManagerUiState,
     actions: ManagerActions,
     launchArgs: String,
+    routerMode: Boolean,
     onApplySettings: (String) -> Unit,
+    onRouterModeChange: (Boolean) -> Unit,
     logLines: List<String>,
     nodeMetrics: NodeMetrics,
     observeLogs: suspend () -> Unit,
@@ -192,6 +197,7 @@ private fun hexaMeshShell(
                 nodeActionBar(
                     state = state.node,
                     hasSelection = state.selectedPath != null,
+                    routerMode = routerMode,
                     onStart = actions.onStart,
                     onStop = actions.onStop,
                 )
@@ -227,7 +233,9 @@ private fun hexaMeshShell(
                 HexaTab.Settings ->
                     settingsScreen(
                         launchArgs = launchArgs,
+                        routerMode = routerMode,
                         onApply = onApplySettings,
+                        onRouterModeChange = onRouterModeChange,
                         snackbarHostState = snackbarHostState,
                         modifier = Modifier.padding(innerPadding),
                     )
@@ -244,6 +252,7 @@ private fun hexaMeshShell(
 private fun nodeActionBar(
     state: NodeState,
     hasSelection: Boolean,
+    routerMode: Boolean,
     onStart: () -> Unit,
     onStop: () -> Unit,
 ) {
@@ -253,7 +262,7 @@ private fun nodeActionBar(
         when {
             busy -> false
             running -> true
-            else -> canLoad(state, hasSelection)
+            else -> canLoad(state, hasSelection, routerMode)
         }
 
     Surface(tonalElevation = 3.dp, modifier = Modifier.fillMaxWidth()) {

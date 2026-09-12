@@ -39,6 +39,9 @@ class NodeController(
     private var activeModelPath: String? = null
 
     @Volatile
+    private var activeRouter = false
+
+    @Volatile
     private var activePort: Int = env.settings.port
 
     private var statusJob: Job? = null
@@ -53,24 +56,27 @@ class NodeController(
 
     internal suspend fun applyModel(modelPath: String?, rpcServers: String? = null) =
         transition.withLock {
-            if (modelPath == null) {
+            val router = env.settings.routerMode
+            val target = if (router) env.modelsDir else modelPath
+            if (target == null) {
                 post(NodeState.Idle)
                 return@withLock
             }
             if (running) return@withLock
 
             running = true
-            activeModelPath = modelPath
+            activeModelPath = target
+            activeRouter = router
             val port = env.settings.port
             val extraArgs = env.settings.launchArgs.joinToString("\n")
             activePort = port
             env.locks.acquire()
-            post(NodeState.Starting(modelPath))
+            post(NodeState.Starting(target, router))
 
             try {
                 engine.start(
                     ServerConfig(
-                        modelPath = modelPath,
+                        modelPath = if (router) "" else modelPath.orEmpty(),
                         nativeLibDir = env.nativeLibDir,
                         cacheDir = env.cacheDir,
                         llamaCacheDir = env.llamaCacheDir,
@@ -80,6 +86,7 @@ class NodeController(
                         extraArgs = extraArgs,
                         role = env.settings.role,
                         rpcServers = rpcServers.orEmpty(),
+                        modelsDir = if (router) env.modelsDir else "",
                     )
                 )
             } catch (t: Throwable) {
@@ -95,7 +102,7 @@ class NodeController(
         transition.withLock {
             if (!running) return@withLock
 
-            activeModelPath?.let { post(NodeState.Stopping(it)) }
+            activeModelPath?.let { post(NodeState.Stopping(it, activeRouter)) }
             teardown()
             post(NodeState.Stopped)
         }
@@ -136,7 +143,7 @@ class NodeController(
                                     val model = activeModelPath
                                     if (model != null) {
                                         post(
-                                            NodeState.Running(model, lanServerUrl())
+                                            NodeState.Running(model, lanServerUrl(), activeRouter)
                                         )
                                     }
                                 }
@@ -159,6 +166,7 @@ class NodeController(
     private suspend fun teardown(stopWatcher: Boolean = true) {
         running = false
         activeModelPath = null
+        activeRouter = false
         if (stopWatcher) {
             statusJob?.cancelAndJoin()
         }

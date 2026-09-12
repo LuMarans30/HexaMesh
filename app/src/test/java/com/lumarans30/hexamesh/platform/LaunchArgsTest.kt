@@ -37,6 +37,12 @@ class LaunchArgsTest {
     }
 
     @Test
+    fun `models-dir is app-owned and stripped from user args`() {
+        assertEquals(listOf("--models-dir"), lockedLaunchFlags(parseLaunchArgs("--models-dir /tmp/m")))
+        assertEquals(listOf("-t", "6"), effectiveLaunchArgs("-t 6 --models-dir /tmp/m"))
+    }
+
+    @Test
     fun `parses the last port, space and equals forms`() {
         assertEquals(9090, parseLaunchPort(parseLaunchArgs("--port 9090")))
         assertEquals(9090, parseLaunchPort(parseLaunchArgs("--port=9090")))

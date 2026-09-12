@@ -36,6 +36,21 @@ class ServerSettings(private val store: SettingsStore) : NodeSettings {
     override val port: Int
         get() = parseLaunchPort(launchArgs) ?: DEFAULT_SERVER_PORT
 
+    private val _routerMode = MutableStateFlow(isRouterMode())
+    val routerModeFlow: StateFlow<Boolean> = _routerMode.asStateFlow()
+
+    override val routerMode: Boolean
+        get() = isRouterMode()
+
+    fun setRouterMode(enabled: Boolean) {
+        if (enabled == isRouterMode()) return
+
+        store.putString(KEY_ROUTER_MODE, enabled.toString())
+        _routerMode.value = enabled
+    }
+
+    private fun isRouterMode(): Boolean = store.getString(KEY_ROUTER_MODE, "") == "true"
+
     fun setLaunchArgs(text: String) {
         if (text == launchArgsText) return
 
@@ -47,6 +62,7 @@ class ServerSettings(private val store: SettingsStore) : NodeSettings {
         private const val PREFS_NAME = "hexamesh_settings"
         private const val KEY_PORT = "port"
         private const val KEY_LAUNCH_ARGS = "launch_args"
+        private const val KEY_ROUTER_MODE = "router_mode"
 
         fun from(context: Context): ServerSettings {
             val prefs =

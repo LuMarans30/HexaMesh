@@ -72,6 +72,21 @@ class ServerSettingsTest {
         assertEquals(9090, settings.port)
     }
 
+    @Test
+    fun `router mode defaults off and persists across instances`() {
+        val store = FakeStore()
+        val settings = ServerSettings(store)
+
+        assertFalse(settings.routerMode)
+        assertFalse(settings.routerModeFlow.value)
+
+        settings.setRouterMode(true)
+
+        assertTrue(settings.routerMode)
+        assertTrue(settings.routerModeFlow.value)
+        assertTrue(ServerSettings(store).routerMode)
+    }
+
     private class FakeStore(
         val strings: MutableMap<String, String> = mutableMapOf(),
     ) : SettingsStore {

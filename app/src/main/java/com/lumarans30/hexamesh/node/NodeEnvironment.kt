@@ -10,6 +10,7 @@ data class NodeEnvironment(
     val nativeLibDir: String,
     val cacheDir: String,
     val llamaCacheDir: String,
+    val modelsDir: String,
     val apiKey: String,
     val serverDiedMessage: String,
     val locks: Locks,

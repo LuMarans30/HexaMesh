@@ -43,6 +43,7 @@ class MeshService : Service() {
 
     private lateinit var notifications: Notifications
     private lateinit var models: ModelRepository
+    private lateinit var settings: ServerSettings
     private lateinit var node: NodeController
 
     private var foregroundActive = false
@@ -53,15 +54,17 @@ class MeshService : Service() {
         super.onCreate()
         notifications = Notifications(this)
         models = ModelRepository(this)
+        settings = ServerSettings.from(this)
         node = NodeController(
             NodeEnvironment(
                 nativeLibDir = applicationInfo.nativeLibraryDir,
                 cacheDir = cacheDir.absolutePath,
                 llamaCacheDir = models.hfCacheDir().absolutePath,
+                modelsDir = models.modelsDir().absolutePath,
                 apiKey = ApiKeyManager.getOrCreateApiKey(this),
                 serverDiedMessage = getString(R.string.state_server_died),
                 locks = LockManager(this),
-                settings = ServerSettings.from(this),
+                settings = settings,
             ),
             RustEngine(),
         )
@@ -94,7 +97,7 @@ class MeshService : Service() {
 
         showForeground(node.state.value)
 
-        if (modelPath == null) {
+        if (modelPath == null && !settings.routerMode) {
             Log.w(TAG, "No .gguf model found. Skipping node start.")
             hideForeground(stopSelf = true)
             return START_NOT_STICKY

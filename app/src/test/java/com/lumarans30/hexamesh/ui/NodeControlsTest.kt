@@ -43,6 +43,19 @@ class NodeControlsTest {
     }
 
     @Test
+    fun `router mode loads without a selection`() {
+        assertTrue(canLoad(NodeState.Stopped, hasSelection = false, routerMode = true))
+        assertTrue(canLoad(NodeState.Error("boom"), hasSelection = false, routerMode = true))
+    }
+
+    @Test
+    fun `router mode is still refused while busy or running`() {
+        assertFalse(canLoad(NodeState.Starting("/models"), false, routerMode = true))
+        assertFalse(canLoad(NodeState.Running("/models", "http://127.0.0.1:8080"), false, true))
+        assertFalse(canLoad(NodeState.Idle, false, routerMode = true))
+    }
+
+    @Test
     fun `delete is allowed when the node is settled`() {
         assertTrue(canDelete(NodeState.Stopped, A, activeModelPath = null))
         assertTrue(canDelete(NodeState.Idle, A, activeModelPath = null))

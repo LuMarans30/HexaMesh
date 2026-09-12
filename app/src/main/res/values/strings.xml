@@ -30,6 +30,7 @@
     <string name="notif_stopping">Stopping %1$s...</string>
     <string name="notif_error">Failed: %1$s</string>
     <string name="notif_waiting_model">Waiting for a .gguf model...</string>
+    <string name="notif_router">models</string>
 
     <string name="state_server_died">llama-server stopped responding.</string>
 
@@ -69,6 +70,9 @@
     <string name="reset_defaults">Reset to defaults</string>
     <string name="args_saved">Arguments saved</string>
     <string name="defaults_restored">Defaults restored</string>
+    <string name="router_mode">Router mode</string>
+    <string name="router_mode_hint">Serve every model in the models folder from one
+        endpoint and load them on demand, instead of loading a single model at start.</string>
     <string name="lan_warning_title">Plain HTTP traffic</string>
     <string name="lan_warning_body">Traffic to the node is unencrypted. Run it only on a network
         you trust, and keep the API key private.</string>

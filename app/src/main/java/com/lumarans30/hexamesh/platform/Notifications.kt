@@ -77,12 +77,18 @@ class Notifications(context: Context) {
 
     private fun contentText(state: NodeState): String =
         when (state) {
-            is NodeState.Starting -> app.getString(R.string.notif_starting, fileName(state.modelPath))
-            is NodeState.Running -> app.getString(R.string.notif_running, fileName(state.modelPath))
-            is NodeState.Stopping -> app.getString(R.string.notif_stopping, fileName(state.modelPath))
+            is NodeState.Starting ->
+                app.getString(R.string.notif_starting, label(state.router, state.modelPath))
+            is NodeState.Running ->
+                app.getString(R.string.notif_running, label(state.router, state.modelPath))
+            is NodeState.Stopping ->
+                app.getString(R.string.notif_stopping, label(state.router, state.modelPath))
             is NodeState.Error -> app.getString(R.string.notif_error, state.message)
             is NodeState.Idle, is NodeState.Stopped -> app.getString(R.string.notif_waiting_model)
         }
+
+    private fun label(router: Boolean, path: String): String =
+        if (router) app.getString(R.string.notif_router) else fileName(path)
 
     private fun fileName(path: String): String = File(path).name
 

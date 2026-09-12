@@ -526,7 +526,7 @@ private fun statusHero(state: NodeState, apiKey: String) {
     when (state) {
         is NodeState.Running ->
             servingCard(
-                modelName = File(state.modelPath).name,
+                modelName = if (state.router) "all models" else File(state.modelPath).name,
                 serverUrl = state.serverUrl,
                 apiKey = apiKey,
             )
@@ -551,7 +551,9 @@ private fun statusHero(state: NodeState, apiKey: String) {
             statusCard(
                 accent = MaterialTheme.colorScheme.primary,
                 title = "Starting llama-server",
-                subtitle = "Loading ${File(state.modelPath).name}…",
+                subtitle =
+                    if (state.router) "Loading models from the models folder…"
+                    else "Loading ${File(state.modelPath).name}…",
                 busy = true,
             )
 
@@ -703,8 +705,8 @@ internal fun selectionEnabled(state: NodeState): Boolean =
 internal fun canDelete(state: NodeState, model: Model, activeModelPath: String?): Boolean =
     selectionEnabled(state) && model.path != activeModelPath
 
-internal fun canLoad(state: NodeState, hasSelection: Boolean): Boolean =
-    hasSelection && (state is NodeState.Stopped || state is NodeState.Error)
+internal fun canLoad(state: NodeState, hasSelection: Boolean, routerMode: Boolean = false): Boolean =
+    (routerMode || hasSelection) && (state is NodeState.Stopped || state is NodeState.Error)
 
 internal fun formatSize(bytes: Long): String {
     if (bytes < 1024) return "$bytes B"
