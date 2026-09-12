@@ -193,7 +193,8 @@ private fun hexaMeshShell(
     ) { innerPadding ->
         tabState.SaveableStateProvider(tab.name) {
             when (tab) {
-                HexaTab.Manage -> nodeScreen(state, actions, Modifier.padding(innerPadding))
+                HexaTab.Manage ->
+                    nodeScreen(state, actions, snackbarHostState, Modifier.padding(innerPadding))
 
                 HexaTab.Mesh ->
                     meshScreen(

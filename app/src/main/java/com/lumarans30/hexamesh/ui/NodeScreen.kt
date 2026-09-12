@@ -32,6 +32,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -46,8 +47,10 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
@@ -70,6 +73,7 @@ import kotlinx.coroutines.launch
 fun nodeScreen(
     state: ManagerUiState,
     actions: ManagerActions,
+    snackbarHostState: SnackbarHostState,
     modifier: Modifier = Modifier,
 ) {
     val nodeState = state.node
@@ -77,6 +81,13 @@ fun nodeScreen(
     var sheetOpen by rememberSaveable { mutableStateOf(false) }
     val sheetState = rememberModalBottomSheetState()
     val scope = rememberCoroutineScope()
+    val clipboard = LocalClipboardManager.current
+    val copiedMessage = stringResource(R.string.copied)
+
+    val copy: (String) -> Unit = { text ->
+        clipboard.setText(AnnotatedString(text))
+        scope.launch { snackbarHostState.showSnackbar(copiedMessage) }
+    }
 
     fun closeSheet() {
         scope
@@ -109,6 +120,7 @@ fun nodeScreen(
             modelList(
                 models = state.models,
                 deleteEnabled = controlsEnabled(nodeState),
+                onCopy = copy,
                 onDelete = { pendingDelete = it },
             )
         }
@@ -382,6 +394,7 @@ private fun ingestionSheet(
 private fun modelList(
     models: List<Model>,
     deleteEnabled: Boolean,
+    onCopy: (String) -> Unit,
     onDelete: (Model) -> Unit,
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -389,6 +402,7 @@ private fun modelList(
             modelRow(
                 model = model,
                 deleteEnabled = deleteEnabled,
+                onCopy = onCopy,
                 onDelete = { onDelete(model) },
             )
         }
@@ -399,6 +413,7 @@ private fun modelList(
 private fun modelRow(
     model: Model,
     deleteEnabled: Boolean,
+    onCopy: (String) -> Unit,
     onDelete: () -> Unit,
 ) {
     Surface(
@@ -409,7 +424,7 @@ private fun modelRow(
         Row(
             modifier =
                 Modifier.fillMaxWidth()
-                    .padding(start = 16.dp, top = 4.dp, end = 4.dp, bottom = 4.dp),
+                    .padding(start = 16.dp, top = 8.dp, end = 4.dp, bottom = 8.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Column(Modifier.weight(1f)) {
@@ -418,6 +433,16 @@ private fun modelRow(
                     style = MaterialTheme.typography.bodyLarge,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.fillMaxWidth().clickable { onCopy(model.id) },
+                )
+                Text(
+                    text = model.path,
+                    style =
+                        MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.fillMaxWidth().clickable { onCopy(model.path) },
                 )
                 Text(formatSize(model.sizeBytes), style = MaterialTheme.typography.bodySmall)
             }
