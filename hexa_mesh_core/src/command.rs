@@ -56,7 +56,7 @@ pub fn build_rpc_command(exe: &Path, config: &ServerConfig) -> Command {
         "--host".into(),
         "0.0.0.0".into(),
         "--port".into(),
-        config.port.to_string(),
+        config.rpc_port.to_string(),
     ];
 
     if let Some(device) = backend_device(&config.backend) {

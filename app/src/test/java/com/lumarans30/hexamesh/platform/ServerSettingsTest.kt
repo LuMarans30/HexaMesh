@@ -1,5 +1,6 @@
 package com.lumarans30.hexamesh.platform
 
+import com.lumarans30.hexamesh.bridge.ServerRole
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -70,6 +71,17 @@ class ServerSettingsTest {
 
         assertEquals(listOf("-m", "other.gguf", "--port", "9090", "-t", "8"), settings.launchArgs)
         assertEquals(9090, settings.port)
+    }
+
+    @Test
+    fun `the role defaults to serving and persists`() {
+        val settings = ServerSettings(FakeStore())
+
+        assertEquals(ServerRole.SERVER, settings.role)
+
+        settings.setRole(ServerRole.RPC)
+
+        assertEquals(ServerRole.RPC, settings.role)
     }
 
     private class FakeStore(

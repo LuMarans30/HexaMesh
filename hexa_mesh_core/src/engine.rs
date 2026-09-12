@@ -92,8 +92,9 @@ impl Supervisor {
             return Err(format!("Server binary not found at {}", exe.display()));
         }
 
-        let port = u16::try_from(config.port)
-            .map_err(|_| format!("Invalid port specified: {}", config.port))?;
+        let bind_port = if config.is_rpc() { config.rpc_port } else { config.port };
+        let port = u16::try_from(bind_port)
+            .map_err(|_| format!("Invalid port specified: {bind_port}"))?;
 
         let log_writer = Self::open_log_file(log_path);
 

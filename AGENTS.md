@@ -35,8 +35,9 @@ and watches the server over JNI.
   accepts `--rpc`. The Rust supervisor runs either role, the pure mesh domain
   lives in `mesh/`, and the Mesh tab advertises/browses `_hexamesh._tcp` (NSD),
   pings peers for latency, and hands the reachable ones to a starting node as
-  `--rpc` (verified offloading to a PC `ggml-rpc-server`). **Not built yet:** the
-  worker role is not selectable from the UI and per-peer logs are missing.
+  `--rpc` (verified offloading to a PC `ggml-rpc-server`), and can itself run as
+  a worker (`Provide compute` on the Mesh tab runs the bundled `ggml-rpc-server`
+  on `DEFAULT_RPC_PORT`). **Not built yet:** per-peer logs are missing.
 
 ## Build & verify
 
@@ -95,7 +96,7 @@ reason.
 | 2 | Settings: persisted port + mDNS/NSD + fallback IPs | port landed; NSD + fallback IPs moved to phase 4 |
 | 2.5 | Custom launch args: editable defaults, locked required flags | ✅ landed |
 | 3 | Logs tab (local diagnostics only) | ✅ landed |
-| 4 | Mesh tab + per-peer logs | 🚧 coordinator offloads to peers; worker role + logs pending |
+| 4 | Mesh tab + per-peer logs | 🚧 mesh works both ways (coordinator + worker); per-peer logs pending |
 | 5 | Router-only: one listener, every model, HF cache | ✅ landed and device-verified |
 
 Phase notes (the load-bearing bits):
@@ -129,9 +130,11 @@ Phase notes (the load-bearing bits):
   uses `isReachable` + `rankPeers`. `usePeers` gates injection, and a start
   carries the endpoints through `MeshService` → `ServerConfig.rpcServers` → Rust
   `--rpc`. Verified over the LAN against a PC `ggml-rpc-server`: the peer's GPU
-  took the weights and served generation. **Next:** a worker-role toggle so this
-  phone can run `ggml-rpc-server`, then the Canvas view and per-peer logs. Prefer
-  one merged, timestamped, peer-filterable log stream.
+  took the weights and served generation. This phone can also be a worker: the
+  Mesh tab's `Provide compute` toggle persists `ServerRole.RPC`, and the node
+  then runs `ggml-rpc-server` bound to `DEFAULT_RPC_PORT` (advertised and probed
+  over the same port). **Next:** the Canvas view and per-peer logs. Prefer one
+  merged, timestamped, peer-filterable log stream.
 - **5 —** one listener, many models. `llama-server` **without `-m`** is a
   *router*: it spawns one child per model on a loopback port and proxies the
   public port, exposing `GET/POST /models`, `/models/load`, `/models/unload`,
@@ -196,8 +199,6 @@ Phase notes (the load-bearing bits):
 
 ## Known debt
 
-- The worker role is still unreachable: `ServerRole.RPC` exists and the bundled
-  `ggml-rpc-server` runs, but nothing in the UI starts it.
 - No `--tensor-split`: llama.cpp splits the model across the local device and
   the `--rpc` peers on its own.
 - The latency probe opens a TCP connection to the peer's RPC port, which is a

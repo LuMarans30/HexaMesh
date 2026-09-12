@@ -62,7 +62,7 @@ class Notifications(context: Context) {
                 )
                 .setOngoing(true)
 
-        if (state is NodeState.Running) builder.setSubText(state.serverUrl)
+        if (state is NodeState.Running) builder.setSubText(state.endpoint)
         if (state is NodeState.Starting || state is NodeState.Stopping) {
             builder.setProgress(0, 0, true)
         }
@@ -82,10 +82,14 @@ class Notifications(context: Context) {
                     modelLabel ?: app.getString(R.string.notif_server),
                 )
             is NodeState.Running ->
-                app.getString(
-                    R.string.notif_running,
-                    modelLabel ?: app.getString(R.string.notif_all_models),
-                )
+                if (state.isWorker) {
+                    app.getString(R.string.notif_worker_running)
+                } else {
+                    app.getString(
+                        R.string.notif_running,
+                        modelLabel ?: app.getString(R.string.notif_all_models),
+                    )
+                }
             is NodeState.Stopping ->
                 app.getString(
                     R.string.notif_stopping,

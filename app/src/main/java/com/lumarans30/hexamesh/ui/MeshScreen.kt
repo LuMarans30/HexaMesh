@@ -44,8 +44,10 @@ fun meshScreen(
     peers: List<PeerNode>,
     fallbackPeers: String,
     discoverable: Boolean,
+    worker: Boolean,
     usePeers: Boolean,
     onDiscoverableChange: (Boolean) -> Unit,
+    onWorkerChange: (Boolean) -> Unit,
     onUsePeersChange: (Boolean) -> Unit,
     onApplyFallback: (String) -> Unit,
     observe: suspend () -> Unit,
@@ -76,9 +78,19 @@ fun meshScreen(
 
         item {
             toggleRow(
+                title = stringResource(R.string.mesh_worker),
+                hint = stringResource(R.string.mesh_worker_hint),
+                checked = worker,
+                onChange = onWorkerChange,
+            )
+        }
+
+        item {
+            toggleRow(
                 title = stringResource(R.string.mesh_use_peers),
                 hint = stringResource(R.string.mesh_use_peers_hint),
                 checked = usePeers,
+                enabled = !worker,
                 onChange = onUsePeersChange,
             )
         }
@@ -94,7 +106,13 @@ fun meshScreen(
 }
 
 @Composable
-private fun toggleRow(title: String, hint: String, checked: Boolean, onChange: (Boolean) -> Unit) {
+private fun toggleRow(
+    title: String,
+    hint: String,
+    checked: Boolean,
+    onChange: (Boolean) -> Unit,
+    enabled: Boolean = true,
+) {
     Surface(
         color = MaterialTheme.colorScheme.surfaceVariant,
         shape = RoundedCornerShape(20.dp),
@@ -112,7 +130,7 @@ private fun toggleRow(title: String, hint: String, checked: Boolean, onChange: (
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
-            Switch(checked = checked, onCheckedChange = onChange)
+            Switch(checked = checked, onCheckedChange = onChange, enabled = enabled)
         }
     }
 }

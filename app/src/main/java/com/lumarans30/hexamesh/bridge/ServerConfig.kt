@@ -20,6 +20,8 @@ data class ServerConfig(
     @JvmField val role: String = ServerRole.SERVER,
     /** Comma-joined `host:port` peers for llama-server's `--rpc`, empty when solo. */
     @JvmField val rpcServers: String = "",
+    /** Port the RPC worker binds; the server role ignores it. */
+    @JvmField val rpcPort: Int,
     /** GGUF directory the router serves (`--models-dir`). */
     @JvmField val modelsDir: String = "",
 )

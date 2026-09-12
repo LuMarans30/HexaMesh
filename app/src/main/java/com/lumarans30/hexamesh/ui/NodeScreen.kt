@@ -525,7 +525,12 @@ private fun grantAccessDialog(name: String, onOpenSettings: () -> Unit, onDismis
 @Composable
 private fun statusHero(state: NodeState, apiKey: String) {
     when (state) {
-        is NodeState.Running -> servingCard(serverUrl = state.serverUrl, apiKey = apiKey)
+        is NodeState.Running ->
+            if (state.isWorker) {
+                workerCard(endpoint = state.endpoint)
+            } else {
+                servingCard(serverUrl = state.endpoint, apiKey = apiKey)
+            }
 
         is NodeState.Stopped ->
             statusCard(
@@ -604,6 +609,55 @@ private fun statusCard(
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
+        }
+    }
+}
+
+@Composable
+private fun workerCard(endpoint: String) {
+    val accent = MaterialTheme.colorScheme.primary
+
+    Surface(
+        color = accent.copy(alpha = 0.16f),
+        shape = RoundedCornerShape(20.dp),
+        modifier = Modifier.fillMaxWidth(),
+    ) {
+        Column(Modifier.padding(16.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Box(
+                    modifier = Modifier.size(40.dp).background(accent, CircleShape),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Icon(
+                        painter = painterResource(R.drawable.ic_mesh),
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onPrimary,
+                    )
+                }
+
+                Spacer(Modifier.width(16.dp))
+
+                Column(Modifier.weight(1f)) {
+                    Text(
+                        text = "Providing compute",
+                        color = accent,
+                        style = MaterialTheme.typography.titleMedium,
+                    )
+                    Text(
+                        text = "Exposing this device's GPU over RPC.",
+                        color = accent.copy(alpha = 0.8f),
+                        style = MaterialTheme.typography.bodyMedium,
+                    )
+                }
+            }
+
+            Spacer(Modifier.height(16.dp))
+
+            HorizontalDivider(color = accent.copy(alpha = 0.25f))
+
+            Spacer(Modifier.height(16.dp))
+
+            connectionRow("RPC endpoint", endpoint, accent)
         }
     }
 }

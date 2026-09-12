@@ -31,6 +31,7 @@
     <string name="notif_stopped">Node stopped</string>
     <string name="notif_server">llama-server</string>
     <string name="notif_all_models">all models</string>
+    <string name="notif_worker_running">Providing compute to the mesh</string>
 
     <string name="state_server_died">llama-server stopped responding.</string>
 
@@ -52,6 +53,8 @@
     <string name="mesh_source_manual">manual</string>
     <string name="mesh_discoverable">Discoverable</string>
     <string name="mesh_discoverable_hint">Advertise this phone on the LAN so other nodes can find it by name.</string>
+    <string name="mesh_worker">Provide compute</string>
+    <string name="mesh_worker_hint">Run as an RPC worker so a coordinator can offload layers to this phone. Takes effect on the next start.</string>
     <string name="mesh_use_peers">Use nearby peers</string>
     <string name="mesh_use_peers_hint">Offload layers to reachable peers the next time the node starts.</string>
     <string name="mesh_fallback_title">Fallback peers</string>

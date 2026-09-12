@@ -3,6 +3,7 @@ package com.lumarans30.hexamesh.ui
 import android.app.Application
 import android.os.Build
 import androidx.lifecycle.AndroidViewModel
+import com.lumarans30.hexamesh.bridge.ServerRole
 import com.lumarans30.hexamesh.logs.readMemoryInfo
 import com.lumarans30.hexamesh.mesh.DEFAULT_RPC_PORT
 import com.lumarans30.hexamesh.mesh.MAX_RPC_SERVERS
@@ -18,6 +19,7 @@ import com.lumarans30.hexamesh.mesh.withoutSelf
 import com.lumarans30.hexamesh.platform.MeshSettings
 import com.lumarans30.hexamesh.platform.NsdAdvertiser
 import com.lumarans30.hexamesh.platform.NsdDiscovery
+import com.lumarans30.hexamesh.platform.ServerSettings
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
@@ -36,6 +38,7 @@ class MeshViewModel(application: Application) : AndroidViewModel(application) {
     private val discovery = NsdDiscovery(application)
     private val advertiser = NsdAdvertiser(application)
     private val settings = MeshSettings.from(application)
+    private val serverSettings = ServerSettings.from(application)
 
     private val selfName = MutableStateFlow<String?>(null)
 
@@ -53,11 +56,19 @@ class MeshViewModel(application: Application) : AndroidViewModel(application) {
 
     val usePeers: StateFlow<Boolean> = settings.usePeersFlow
 
+    private val _worker = MutableStateFlow(serverSettings.role == ServerRole.RPC)
+    val worker: StateFlow<Boolean> = _worker.asStateFlow()
+
     fun applyFallbackPeers(text: String) = settings.setFallbackPeers(text)
 
     fun setDiscoverable(discoverable: Boolean) = settings.setDiscoverable(discoverable)
 
     fun setUsePeers(usePeers: Boolean) = settings.setUsePeers(usePeers)
+
+    fun setWorker(worker: Boolean) {
+        serverSettings.setRole(if (worker) ServerRole.RPC else ServerRole.SERVER)
+        _worker.value = worker
+    }
 
     /**
      * Endpoints for llama-server's `--rpc`, or null when meshing is off or no
@@ -65,7 +76,7 @@ class MeshViewModel(application: Application) : AndroidViewModel(application) {
      * [MAX_RPC_SERVERS]; call this at start time so it reflects the live pings.
      */
     fun rpcEndpoints(): String? {
-        if (!usePeers.value) return null
+        if (!usePeers.value || _worker.value) return null
 
         val now = System.currentTimeMillis()
         return rankPeers(_peers.value)

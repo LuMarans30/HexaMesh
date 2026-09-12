@@ -3,6 +3,8 @@ package com.lumarans30.hexamesh.node
 import com.lumarans30.hexamesh.bridge.Engine
 import com.lumarans30.hexamesh.bridge.EngineStatus
 import com.lumarans30.hexamesh.bridge.ServerConfig
+import com.lumarans30.hexamesh.bridge.ServerRole
+import com.lumarans30.hexamesh.mesh.DEFAULT_RPC_PORT
 import java.net.Inet4Address
 import java.net.NetworkInterface
 import kotlinx.coroutines.CoroutineScope
@@ -38,6 +40,9 @@ class NodeController(
     @Volatile
     private var activePort: Int = env.settings.port
 
+    @Volatile
+    private var activeIsWorker = false
+
     private var statusJob: Job? = null
 
     fun start(rpcServers: String? = null) {
@@ -54,8 +59,10 @@ class NodeController(
 
             running = true
             val port = env.settings.port
+            val role = env.settings.role
             val extraArgs = env.settings.launchArgs.joinToString("\n")
             activePort = port
+            activeIsWorker = role == ServerRole.RPC
             env.locks.acquire()
             post(NodeState.Starting)
 
@@ -69,8 +76,9 @@ class NodeController(
                         backend = BACKEND,
                         apiKey = env.apiKey,
                         extraArgs = extraArgs,
-                        role = env.settings.role,
+                        role = role,
                         rpcServers = rpcServers.orEmpty(),
+                        rpcPort = DEFAULT_RPC_PORT,
                         modelsDir = env.modelsDir,
                     )
                 )
@@ -124,7 +132,8 @@ class NodeController(
 
                         if (!(first && status.state == EngineStatus.STOPPED)) {
                             when (status.state) {
-                                EngineStatus.RUNNING -> post(NodeState.Running(lanServerUrl()))
+                                EngineStatus.RUNNING ->
+                                    post(NodeState.Running(runningEndpoint(), activeIsWorker))
 
                                 EngineStatus.ERROR -> {
                                     fail(status.message ?: env.serverDiedMessage)
@@ -143,6 +152,7 @@ class NodeController(
 
     private suspend fun teardown(stopWatcher: Boolean = true) {
         running = false
+        activeIsWorker = false
         if (stopWatcher) {
             statusJob?.cancelAndJoin()
         }
@@ -155,9 +165,10 @@ class NodeController(
         _state.value = state
     }
 
-    private fun lanServerUrl(): String {
+    /** HTTP base URL when serving, `host:port` when exposing RPC to the mesh. */
+    private fun runningEndpoint(): String {
         val host = lanIpv4Address() ?: "127.0.0.1"
-        return "http://$host:$activePort"
+        return if (activeIsWorker) "$host:$DEFAULT_RPC_PORT" else "http://$host:$activePort"
     }
 
     private fun lanIpv4Address(): String? =

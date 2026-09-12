@@ -8,6 +8,6 @@ sealed interface NodeState {
     data object Stopped : NodeState
     data object Starting : NodeState
     data object Stopping : NodeState
-    data class Running(val serverUrl: String) : NodeState
+    data class Running(val endpoint: String, val isWorker: Boolean = false) : NodeState
     data class Error(val message: String) : NodeState
 }

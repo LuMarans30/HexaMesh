@@ -1,6 +1,7 @@
 package com.lumarans30.hexamesh.platform
 
 import android.content.Context
+import com.lumarans30.hexamesh.bridge.ServerRole
 import com.lumarans30.hexamesh.node.NodeSettings
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -36,6 +37,9 @@ class ServerSettings(private val store: SettingsStore) : NodeSettings {
     override val port: Int
         get() = parseLaunchPort(launchArgs) ?: DEFAULT_SERVER_PORT
 
+    override val role: String
+        get() = store.getString(KEY_ROLE, ServerRole.SERVER)
+
     fun setLaunchArgs(text: String) {
         if (text == launchArgsText) return
 
@@ -43,9 +47,16 @@ class ServerSettings(private val store: SettingsStore) : NodeSettings {
         _launchArgs.value = text
     }
 
+    fun setRole(role: String) {
+        if (role == this.role) return
+
+        store.putString(KEY_ROLE, role)
+    }
+
     companion object {
         private const val PREFS_NAME = "hexamesh_settings"
         private const val KEY_LAUNCH_ARGS = "launch_args"
+        private const val KEY_ROLE = "role"
 
         fun from(context: Context): ServerSettings {
             val prefs =

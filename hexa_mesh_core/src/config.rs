@@ -12,7 +12,10 @@ pub struct ServerConfig {
     pub cache_dir: String,
     /// Root for llama.cpp's Hugging Face cache (`LLAMA_CACHE`); empty to leave it unset.
     pub llama_cache_dir: String,
+    /// HTTP port for the server role; also the parsed launch-args port.
     pub port: i32,
+    /// Port the RPC worker binds (and the health probe checks).
+    pub rpc_port: i32,
     pub backend: String,
     pub api_key: String,
     pub extra_args: Vec<String>,
@@ -54,6 +57,9 @@ impl ServerConfig {
             api_key: get_str("apiKey")?,
             port: env
                 .get_field(obj, JNIString::new("port"), jni_sig!("I"))?
+                .i()?,
+            rpc_port: env
+                .get_field(obj, JNIString::new("rpcPort"), jni_sig!("I"))?
                 .i()?,
             extra_args,
             role,

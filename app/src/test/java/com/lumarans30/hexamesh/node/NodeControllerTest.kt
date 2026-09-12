@@ -4,6 +4,7 @@ import com.lumarans30.hexamesh.bridge.Engine
 import com.lumarans30.hexamesh.bridge.EngineStatus
 import com.lumarans30.hexamesh.bridge.ServerConfig
 import com.lumarans30.hexamesh.bridge.ServerRole
+import com.lumarans30.hexamesh.mesh.DEFAULT_RPC_PORT
 import com.lumarans30.hexamesh.platform.Locks
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.launch
@@ -87,7 +88,7 @@ class NodeControllerTest {
 
         val running = controller.state.value
         assertTrue(running is NodeState.Running)
-        assertTrue((running as NodeState.Running).serverUrl.endsWith(":9090"))
+        assertTrue((running as NodeState.Running).endpoint.endsWith(":9090"))
 
         controller.unload()
     }
@@ -134,6 +135,26 @@ class NodeControllerTest {
         runCurrent()
 
         assertEquals(ServerRole.RPC, engine.started.single().role)
+
+        controller.unload()
+    }
+
+    @Test
+    fun `worker role runs rpc and reports the mesh endpoint`() = runTest {
+        val controller = newController()
+        settings.roleValue = ServerRole.RPC
+        engine.status = EngineStatus(EngineStatus.RUNNING, "ready")
+
+        controller.startNode()
+        runCurrent()
+
+        assertEquals(DEFAULT_RPC_PORT, engine.started.single().rpcPort)
+
+        val running = controller.state.value
+        assertTrue(running is NodeState.Running)
+        running as NodeState.Running
+        assertTrue(running.isWorker)
+        assertTrue(running.endpoint.endsWith(":$DEFAULT_RPC_PORT"))
 
         controller.unload()
     }

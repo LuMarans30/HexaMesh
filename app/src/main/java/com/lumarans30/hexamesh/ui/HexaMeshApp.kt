@@ -66,6 +66,7 @@ fun hexaMeshApp(
     val meshPeers by meshViewModel.peers.collectAsStateWithLifecycle()
     val fallbackPeers by meshViewModel.fallbackPeers.collectAsStateWithLifecycle()
     val meshDiscoverable by meshViewModel.discoverable.collectAsStateWithLifecycle()
+    val meshWorker by meshViewModel.worker.collectAsStateWithLifecycle()
     val meshUsePeers by meshViewModel.usePeers.collectAsStateWithLifecycle()
 
     val state =
@@ -122,9 +123,11 @@ fun hexaMeshApp(
         meshPeers = meshPeers,
         fallbackPeers = fallbackPeers,
         meshDiscoverable = meshDiscoverable,
+        meshWorker = meshWorker,
         meshUsePeers = meshUsePeers,
         onApplyFallbackPeers = meshViewModel::applyFallbackPeers,
         onMeshDiscoverableChange = meshViewModel::setDiscoverable,
+        onMeshWorkerChange = meshViewModel::setWorker,
         onMeshUsePeersChange = meshViewModel::setUsePeers,
         observePeers = meshViewModel::observe,
         modifier = modifier,
@@ -148,9 +151,11 @@ private fun hexaMeshShell(
     meshPeers: List<PeerNode>,
     fallbackPeers: String,
     meshDiscoverable: Boolean,
+    meshWorker: Boolean,
     meshUsePeers: Boolean,
     onApplyFallbackPeers: (String) -> Unit,
     onMeshDiscoverableChange: (Boolean) -> Unit,
+    onMeshWorkerChange: (Boolean) -> Unit,
     onMeshUsePeersChange: (Boolean) -> Unit,
     observePeers: suspend () -> Unit,
     modifier: Modifier = Modifier,
@@ -201,8 +206,10 @@ private fun hexaMeshShell(
                         peers = meshPeers,
                         fallbackPeers = fallbackPeers,
                         discoverable = meshDiscoverable,
+                        worker = meshWorker,
                         usePeers = meshUsePeers,
                         onDiscoverableChange = onMeshDiscoverableChange,
+                        onWorkerChange = onMeshWorkerChange,
                         onUsePeersChange = onMeshUsePeersChange,
                         onApplyFallback = onApplyFallbackPeers,
                         observe = observePeers,
