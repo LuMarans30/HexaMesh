@@ -71,8 +71,12 @@ and watches the server over JNI.
 - **Commits:** Conventional Commits, lowercase scope, imperative subject, no
   trailing period, no body paragraphs. E.g. `fix(ui): drop stale transfer
   errors on launch`.
-- **Comments:** only when the code can't explain itself. Keep names and
-  structure self-explanatory instead of narrating what a line does.
+- **Comments:** be sparing — only when the code can't explain itself. Before
+  writing one, check whether a clearer name or structure would remove the need.
+  A comment earns its place by explaining *why* (a constraint, workaround, or
+  non-obvious decision), never by narrating *what* the next lines do or
+  restating a signature. Don't overexplain, and don't cite transient things
+  (issue/PR numbers, "currently", "for now") that go stale.
 - **Pure logic + tests:** keep `controlsEnabled`, `formatSize`, `isLoadableModel`,
   and download/import parsing as pure functions with JVM unit tests. Preserve
   that separation.
