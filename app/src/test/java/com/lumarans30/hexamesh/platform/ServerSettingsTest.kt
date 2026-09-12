@@ -63,12 +63,12 @@ class ServerSettingsTest {
     }
 
     @Test
-    fun `stored locked flags are stripped but the port is kept`() {
+    fun `stored args keep the model flag and the port`() {
         val settings = ServerSettings(FakeStore())
 
         settings.setLaunchArgs("-m other.gguf --port 9090 -t 8")
 
-        assertEquals(listOf("--port", "9090", "-t", "8"), settings.launchArgs)
+        assertEquals(listOf("-m", "other.gguf", "--port", "9090", "-t", "8"), settings.launchArgs)
         assertEquals(9090, settings.port)
     }
 

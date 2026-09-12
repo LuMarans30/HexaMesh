@@ -15,14 +15,20 @@ class LaunchArgsTest {
     fun `locks the app-owned flags including equals form`() {
         val flags = lockedLaunchFlags(parseLaunchArgs("-m x --host=0.0.0.0 -t 6"))
 
-        assertEquals(listOf("-m", "--host=0.0.0.0"), flags)
+        assertEquals(listOf("--host=0.0.0.0"), flags)
     }
 
     @Test
     fun `effective args drop locked flags and keep the rest`() {
         val args = effectiveLaunchArgs("-m x -t 6 --host 0.0.0.0 --no-warmup")
 
-        assertEquals(listOf("-t", "6", "--no-warmup"), args)
+        assertEquals(listOf("-m", "x", "-t", "6", "--no-warmup"), args)
+    }
+
+    @Test
+    fun `the model flag is user-editable`() {
+        assertEquals(emptyList<String>(), lockedLaunchFlags(parseLaunchArgs("-m /models/a.gguf")))
+        assertEquals(listOf("-m", "/models/a.gguf"), effectiveLaunchArgs("-m /models/a.gguf"))
     }
 
     @Test
