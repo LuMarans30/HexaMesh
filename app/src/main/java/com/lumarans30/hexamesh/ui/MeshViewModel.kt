@@ -39,6 +39,12 @@ import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
 import kotlin.time.Duration.Companion.milliseconds
 
+enum class MeshStart {
+    NotRequested,
+    Peers,
+    Solo,
+}
+
 /** Discovers mesh peers on the LAN, pings them, and merges the fallback list. */
 class MeshViewModel(
     application: Application,
@@ -119,19 +125,26 @@ class MeshViewModel(
         if (state is NodeState.Stopped || state is NodeState.Error) wired.value = emptySet()
     }
 
-    suspend fun ensureFreshPeers(timeoutMs: Long = PEER_WAIT_MS) {
-        if (!usePeers.value || _worker.value) return
-        if (_peers.value.any { isReachable(it, System.currentTimeMillis()) }) return
+    suspend fun ensureFreshPeers(): MeshStart {
+        if (!usePeers.value || _worker.value) return MeshStart.NotRequested
+        if (_peers.value.any { isReachable(it, System.currentTimeMillis()) }) return MeshStart.Peers
 
         start()
+        // With candidates in hand only the ping sweep is pending, so a short window
+        // suffices; with nothing seen yet the wait is on mDNS itself.
+        val timeoutMs = if (merged.value.isEmpty()) DISCOVERY_WAIT_MS else PING_WAIT_MS
+
         _scanning.value = true
-        try {
-            withTimeoutOrNull(timeoutMs.milliseconds) {
-                _peers.first { peers -> peers.any { isReachable(it, System.currentTimeMillis()) } }
+        val found =
+            try {
+                withTimeoutOrNull(timeoutMs.milliseconds) {
+                    _peers.first { peers -> peers.any { isReachable(it, System.currentTimeMillis()) } }
+                }
+            } finally {
+                _scanning.value = false
             }
-        } finally {
-            _scanning.value = false
-        }
+
+        return if (found == null) MeshStart.Solo else MeshStart.Peers
     }
 
     private suspend fun observe() =
@@ -194,6 +207,7 @@ class MeshViewModel(
 
     private companion object {
         const val PING_INTERVAL_MS = 5_000L
-        const val PEER_WAIT_MS = 2_000L
+        const val PING_WAIT_MS = 1_000L
+        const val DISCOVERY_WAIT_MS = 5_000L
     }
 }

@@ -69,6 +69,8 @@ fun hexaMeshApp(
     val meshScanning by meshViewModel.scanning.collectAsStateWithLifecycle()
 
     val scope = rememberCoroutineScope()
+    val snackbarHostState = remember { SnackbarHostState() }
+    val soloMessage = stringResource(R.string.mesh_started_solo)
 
     LaunchedEffect(nodeState) {
         meshViewModel.onNodeState(nodeState)
@@ -92,6 +94,7 @@ fun hexaMeshApp(
             onPickModel,
             onOpenAllFilesSettings,
             onFixBattery,
+            soloMessage,
         ) {
             ManagerActions(
                 onDelete = transferViewModel::delete,
@@ -109,8 +112,9 @@ fun hexaMeshApp(
                 onGrantDismiss = transferViewModel::onGrantDismiss,
                 onStart = {
                     scope.launch {
-                        meshViewModel.ensureFreshPeers()
+                        val start = meshViewModel.ensureFreshPeers()
                         nodeViewModel.start(meshViewModel.rpcEndpoints())
+                        if (start == MeshStart.Solo) snackbarHostState.showSnackbar(soloMessage)
                     }
                 },
                 onStop = nodeViewModel::stop,
@@ -147,6 +151,7 @@ fun hexaMeshApp(
         meshActions = meshActions,
         logs = logs,
         settings = settings,
+        snackbarHostState = snackbarHostState,
         modifier = modifier,
     )
 }
@@ -160,11 +165,11 @@ private fun hexaMeshShell(
     meshActions: MeshActions,
     logs: LogsUiState,
     settings: SettingsUiState,
+    snackbarHostState: SnackbarHostState,
     modifier: Modifier = Modifier,
 ) {
     var tab by rememberSaveable { mutableStateOf(HexaTab.Manage) }
     val tabState = rememberSaveableStateHolder()
-    val snackbarHostState = remember { SnackbarHostState() }
 
     BackHandler(enabled = tab != HexaTab.Manage) { tab = HexaTab.Manage }
 
