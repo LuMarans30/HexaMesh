@@ -279,7 +279,14 @@ Phase notes (the load-bearing bits):
    LAN URL. `--rpc` is app-owned too: the app strips a user-typed one and injects
    the reachable mesh peers (`ServerConfig.rpcServers`) only when the node starts.
    `--models-max` is app-owned as well but injected by Rust only while meshing, so
-   the router stays at one child (see phase 5).
+   the router stays at one child (see phase 5). The defaults bound the KV pool with
+   `-c 8192` because llama.cpp otherwise sizes it to the model's context per slot
+   (`n_slots = 4, n_ctx_slot = 50688` on the 4B), and that is what drove the system
+   to `status critical` on a 4B load (GPU peak 2.5 GB, free RAM 730 MB). With
+   `-c 8192` alone it is 1.8 GB / 2.9 GB and never goes critical. `-ngl 99` stays
+   pinned: dropping it enables llama.cpp's `--fit`, but this GPU (Adreno, shared
+   system RAM) reports its memory as free, so `--fit` offloads everything and peaks
+   *higher* (4.98 GB), not lower.
 
 Open questions (add new ones below instead of reopening the above):
 

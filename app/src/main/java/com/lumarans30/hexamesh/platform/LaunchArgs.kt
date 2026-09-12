@@ -11,8 +11,14 @@ import java.io.File
 val LOCKED_LAUNCH_FLAGS =
     setOf("--host", "--api-key", "--device", "--rpc", "--models-dir", "--models-max")
 
-/** Editable defaults. `-ngl` assumes the GPU backend. */
-const val DEFAULT_LAUNCH_ARGS = "--port 8080 --slots -fa on -t 6 -ub 16 --no-warmup -ngl 99"
+/**
+ * Editable defaults. `-c` bounds the KV pool, which llama.cpp otherwise sizes to
+ * the model's context per slot (4 x 50688 on the 4B), and that is what drives the
+ * system to `status critical`. `-ngl` stays pinned for full GPU offload: dropping
+ * it enables `--fit`, but this GPU reports its memory as free (it is shared system
+ * RAM), so `--fit` offloads everything and peaks higher, not lower.
+ */
+const val DEFAULT_LAUNCH_ARGS = "--port 8080 --slots -fa on -t 6 -ub 16 --no-warmup -c 8192 -ngl 99"
 
 fun parseLaunchArgs(text: String): List<String> = text.split(' ', '\t', '\n', '\r').filter { it.isNotBlank() }
 
