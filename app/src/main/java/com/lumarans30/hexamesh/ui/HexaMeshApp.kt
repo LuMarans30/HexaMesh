@@ -74,6 +74,7 @@ fun hexaMeshApp(
             node = nodeState,
             models = transfer.models,
             selectedPath = transfer.selectedPath,
+            routerMode = routerMode,
             batteryExempt = batteryExempt,
             apiKey = nodeViewModel.apiKey,
             adbPushHint = transfer.adbPushHint,
@@ -96,6 +97,7 @@ fun hexaMeshApp(
             ManagerActions(
                 onSelect = transferViewModel::select,
                 onDelete = transferViewModel::delete,
+                onRouterModeChange = settingsViewModel::setRouterMode,
                 onDownload = transferViewModel::startDownload,
                 onCancelDownload = transferViewModel::cancelDownload,
                 onImport = onPickModel,
@@ -125,7 +127,6 @@ fun hexaMeshApp(
         launchArgs = launchArgs,
         routerMode = routerMode,
         onApplySettings = settingsViewModel::apply,
-        onRouterModeChange = settingsViewModel::setRouterMode,
         logLines = logLines,
         nodeMetrics = nodeMetrics,
         observeLogs = logsViewModel::observe,
@@ -153,7 +154,6 @@ private fun hexaMeshShell(
     launchArgs: String,
     routerMode: Boolean,
     onApplySettings: (String) -> Unit,
-    onRouterModeChange: (Boolean) -> Unit,
     logLines: List<String>,
     nodeMetrics: NodeMetrics,
     observeLogs: suspend () -> Unit,
@@ -233,9 +233,7 @@ private fun hexaMeshShell(
                 HexaTab.Settings ->
                     settingsScreen(
                         launchArgs = launchArgs,
-                        routerMode = routerMode,
                         onApply = onApplySettings,
-                        onRouterModeChange = onRouterModeChange,
                         snackbarHostState = snackbarHostState,
                         modifier = Modifier.padding(innerPadding),
                     )

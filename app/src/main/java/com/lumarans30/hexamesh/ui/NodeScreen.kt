@@ -34,6 +34,7 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Surface
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberModalBottomSheetState
@@ -95,7 +96,15 @@ fun nodeScreen(
                 .verticalScroll(rememberScrollState())
                 .padding(24.dp),
     ) {
-        statusHero(nodeState, state.apiKey)
+        statusHero(nodeState, state.apiKey, state.routerMode)
+
+        Spacer(Modifier.height(16.dp))
+
+        routerModeCard(
+            routerMode = state.routerMode,
+            enabled = selectionEnabled(nodeState),
+            onChange = actions.onRouterModeChange,
+        )
 
         Spacer(Modifier.height(24.dp))
 
@@ -112,8 +121,8 @@ fun nodeScreen(
         } else {
             modelList(
                 models = state.models,
-                selectedPath = state.selectedPath,
-                enabled = selectionEnabled(nodeState),
+                selectedPath = if (state.routerMode) null else state.selectedPath,
+                selectEnabled = canSelect(nodeState, state.routerMode),
                 canDelete = { canDelete(nodeState, it, activeModelPath) },
                 onSelect = actions.onSelect,
                 onDelete = { pendingDelete = it },
@@ -182,6 +191,35 @@ fun nodeScreen(
                     onOpenSettings = actions.onGrantAccess,
                     onDismiss = actions.onGrantDismiss,
                 )
+        }
+    }
+}
+
+@Composable
+private fun routerModeCard(routerMode: Boolean, enabled: Boolean, onChange: (Boolean) -> Unit) {
+    Surface(
+        color = MaterialTheme.colorScheme.surfaceVariant,
+        shape = RoundedCornerShape(20.dp),
+        modifier = Modifier.fillMaxWidth(),
+    ) {
+        Row(
+            modifier = Modifier.padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Column(Modifier.weight(1f)) {
+                Text(
+                    text = stringResource(R.string.router_mode),
+                    style = MaterialTheme.typography.titleMedium,
+                )
+                Spacer(Modifier.height(4.dp))
+                Text(
+                    text = stringResource(R.string.router_mode_hint),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            Spacer(Modifier.width(16.dp))
+            Switch(checked = routerMode, onCheckedChange = onChange, enabled = enabled)
         }
     }
 }
@@ -389,7 +427,7 @@ private fun ingestionSheet(
 private fun modelList(
     models: List<Model>,
     selectedPath: String?,
-    enabled: Boolean,
+    selectEnabled: Boolean,
     canDelete: (Model) -> Boolean,
     onSelect: (Model) -> Unit,
     onDelete: (Model) -> Unit,
@@ -399,7 +437,7 @@ private fun modelList(
             modelRow(
                 model = model,
                 selected = model.path == selectedPath,
-                enabled = enabled,
+                selectEnabled = selectEnabled,
                 deleteEnabled = canDelete(model),
                 onClick = { onSelect(model) },
                 onDelete = { onDelete(model) },
@@ -412,7 +450,7 @@ private fun modelList(
 private fun modelRow(
     model: Model,
     selected: Boolean,
-    enabled: Boolean,
+    selectEnabled: Boolean,
     deleteEnabled: Boolean,
     onClick: () -> Unit,
     onDelete: () -> Unit,
@@ -430,20 +468,25 @@ private fun modelRow(
         Row(
             modifier =
                 Modifier.fillMaxWidth()
-                    .alpha(if (enabled) 1f else 0.45f)
-                    .clickable(enabled = enabled, onClick = onClick)
+                    .clickable(enabled = selectEnabled, onClick = onClick)
                     .padding(start = 8.dp, top = 4.dp, end = 4.dp, bottom = 4.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            RadioButton(selected = selected, onClick = onClick, enabled = enabled)
-            Column(Modifier.weight(1f).padding(start = 4.dp)) {
-                Text(
-                    text = model.id,
-                    style = MaterialTheme.typography.bodyLarge,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
-                Text(formatSize(model.sizeBytes), style = MaterialTheme.typography.bodySmall)
+            Row(
+                modifier =
+                    Modifier.weight(1f).alpha(if (selectEnabled) 1f else 0.45f),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                RadioButton(selected = selected, onClick = onClick, enabled = selectEnabled)
+                Column(Modifier.weight(1f).padding(start = 4.dp)) {
+                    Text(
+                        text = model.id,
+                        style = MaterialTheme.typography.bodyLarge,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                    Text(formatSize(model.sizeBytes), style = MaterialTheme.typography.bodySmall)
+                }
             }
             IconButton(onClick = onDelete, enabled = deleteEnabled) {
                 Icon(
@@ -522,7 +565,7 @@ private fun grantAccessDialog(name: String, onOpenSettings: () -> Unit, onDismis
 }
 
 @Composable
-private fun statusHero(state: NodeState, apiKey: String) {
+private fun statusHero(state: NodeState, apiKey: String, routerMode: Boolean) {
     when (state) {
         is NodeState.Running ->
             servingCard(
@@ -535,7 +578,9 @@ private fun statusHero(state: NodeState, apiKey: String) {
             statusCard(
                 accent = MaterialTheme.colorScheme.onSurfaceVariant,
                 title = "Node stopped",
-                subtitle = "Select a model, then tap Start Node.",
+                subtitle =
+                    if (routerMode) "Tap Start Node to serve every model."
+                    else "Select a model, then tap Start Node.",
                 symbol = "○",
             )
 
@@ -701,6 +746,10 @@ internal fun selectionEnabled(state: NodeState): Boolean =
         is NodeState.Stopped, is NodeState.Idle, is NodeState.Error -> true
         is NodeState.Starting, is NodeState.Stopping, is NodeState.Running -> false
     }
+
+/** Router mode serves every model by name, so the single-model picker is inert. */
+internal fun canSelect(state: NodeState, routerMode: Boolean): Boolean =
+    selectionEnabled(state) && !routerMode
 
 internal fun canDelete(state: NodeState, model: Model, activeModelPath: String?): Boolean =
     selectionEnabled(state) && model.path != activeModelPath

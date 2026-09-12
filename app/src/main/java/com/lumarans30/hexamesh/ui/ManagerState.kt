@@ -12,6 +12,7 @@ data class ManagerUiState(
     val node: NodeState = NodeState.Stopped,
     val models: List<Model> = emptyList(),
     val selectedPath: String? = null,
+    val routerMode: Boolean = false,
     val batteryExempt: Boolean = false,
     val apiKey: String = "",
     val adbPushHint: String = "",
@@ -26,6 +27,7 @@ data class ManagerUiState(
 class ManagerActions(
     val onSelect: (Model) -> Unit,
     val onDelete: (Model) -> Unit,
+    val onRouterModeChange: (Boolean) -> Unit,
     val onDownload: (DownloadRequest) -> Unit,
     val onCancelDownload: () -> Unit,
     val onImport: () -> Unit,

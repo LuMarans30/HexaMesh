@@ -23,6 +23,19 @@ class NodeControlsTest {
     }
 
     @Test
+    fun `selecting a model is disabled in router mode`() {
+        assertTrue(canSelect(NodeState.Stopped, routerMode = false))
+        assertFalse(canSelect(NodeState.Stopped, routerMode = true))
+    }
+
+    @Test
+    fun `selecting is disabled while busy regardless of mode`() {
+        val running = NodeState.Running("/models/a.gguf", "http://127.0.0.1:8080")
+        assertFalse(canSelect(running, routerMode = false))
+        assertFalse(canSelect(running, routerMode = true))
+    }
+
+    @Test
     fun `load is allowed from a settled state with a selection`() {
         assertTrue(canLoad(NodeState.Stopped, hasSelection = true))
         assertTrue(canLoad(NodeState.Error("boom"), hasSelection = true))
