@@ -90,6 +90,7 @@ reason.
 | 2.5 | Custom launch args: editable defaults, locked required flags | ✅ landed |
 | 3 | Logs tab (local diagnostics only) | ✅ landed |
 | 4 | Mesh tab + per-peer logs | 🚧 coordinator offloads to peers; worker role + logs pending |
+| 5 | Router mode + HF cache (one listener, many models) | 🚧 `LLAMA_CACHE` wired; router launch + source merge pending |
 
 Phase notes (the load-bearing bits):
 
@@ -126,6 +127,28 @@ Phase notes (the load-bearing bits):
   phone can run `ggml-rpc-server`, `--tensor-split` from `planLayers`, then the
   Canvas view and per-peer logs. Prefer one merged, timestamped, peer-filterable
   log stream.
+- **5 —** one listener, many models. `llama-server` **without `-m`** is a
+  *router*: it spawns one child per model on a loopback port and proxies the
+  public port, exposing `GET/POST /models`, `/models/load`, `/models/unload`,
+  `/models/sse`, and `?reload=1`. Three sources merge in
+  `server_models::load_models()` — the HF cache, `--models-dir`, and an INI
+  preset — so keep the app's flat `models/` dir on `--models-dir` for imports,
+  `adb push`, and arbitrary URLs, and add an HF cache for HF downloads.
+  `unset_reserved_args()` strips api-key/model/alias and rewrites host/port per
+  child but **not** `--rpc`/`--device`, so mesh offloading is inherited; the
+  router enforces the API key and children listen only on loopback. Child
+  stdout/stderr is forwarded into the router log with a `[port]` prefix, so
+  `llama-server.log` still captures everything (port-tagged, not model-tagged).
+  Step 1 landed: `LLAMA_CACHE` is pinned to `<externalFilesDir>/hf-cache`
+  (`ModelRepository.hfCacheDir()` → `ServerConfig.llamaCacheDir` → Rust), because
+  Android has no usable `$HOME` and `hf_cache::get_cache_directory()` would
+  otherwise resolve to an unwritable path. Still open: launching without `-m`
+  supersedes decision #6's locked `-m` and the Rust `needs_model` precondition;
+  the 4 s `TERM_GRACE` is shorter than the router's 10 s per-model
+  `stop-timeout`, and model grandchildren are not covered by the supervisor's
+  `PDEATHSIG`; download ownership (`POST /models` vs `ModelDownloadWorker`);
+  `SlotsClient` needs `?model=`; and HF ids clash with the path-based
+  `Model`/`NodeState`/repository.
 
 ## Gotchas
 
@@ -186,4 +209,9 @@ Phase notes (the load-bearing bits):
    user-typed one and injects the reachable mesh peers (`ServerConfig.rpcServers`)
    only when the node starts.
 
-Open questions: none. Add new ones below instead of reopening the above.
+Open questions (add new ones below instead of reopening the above):
+
+- **Phase 5:** does the router supersede decision #6 (the app always injecting
+  `-m`)? Where do downloads live — the router's `POST /models` or
+  `ModelDownloadWorker`? Does `LLAMA_CACHE` stay on external storage
+  (symlink-degraded, adb-pushable) or move to internal (dedup, but space-limited)?
