@@ -2,6 +2,7 @@ package com.lumarans30.hexamesh.logs
 
 import java.net.HttpURLConnection
 import java.net.URL
+import java.net.URLEncoder
 
 /** Reads the live slot stats the server exposes when launched with `--slots`. */
 class SlotsClient(
@@ -9,9 +10,9 @@ class SlotsClient(
     private val apiKey: String,
     private val timeoutMs: Int = 1000,
 ) {
-    fun decodedTokens(): Int? {
+    fun decodedTokens(model: String): Int? {
         val connection =
-            (URL("http://127.0.0.1:$port/slots").openConnection() as HttpURLConnection).apply {
+            (URL(slotsUrl(port, model)).openConnection() as HttpURLConnection).apply {
                 connectTimeout = timeoutMs
                 readTimeout = timeoutMs
                 requestMethod = "GET"
@@ -30,4 +31,12 @@ class SlotsClient(
             connection.disconnect()
         }
     }
+}
+
+internal fun slotsUrl(
+    port: Int,
+    model: String,
+): String {
+    val encoded = URLEncoder.encode(model, Charsets.UTF_8.name()).replace("+", "%20")
+    return "http://127.0.0.1:$port/slots?model=$encoded&autoload=0"
 }

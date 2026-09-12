@@ -12,6 +12,7 @@ import com.lumarans30.hexamesh.logs.ThermalZones
 import com.lumarans30.hexamesh.logs.hottestCelsius
 import com.lumarans30.hexamesh.logs.readMemoryInfo
 import com.lumarans30.hexamesh.logs.tokensPerSecond
+import com.lumarans30.hexamesh.node.ModelsClient
 import com.lumarans30.hexamesh.platform.ApiKeyManager
 import com.lumarans30.hexamesh.platform.ServerSettings
 import kotlinx.coroutines.Dispatchers
@@ -26,6 +27,7 @@ import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
+import kotlin.time.Duration.Companion.milliseconds
 
 /** Streams the log file and the node diagnostics while the Logs tab is visible. */
 class LogsViewModel(
@@ -67,10 +69,7 @@ class LogsViewModel(
         while (currentCoroutineContext().isActive) {
             val memory = withContext(Dispatchers.IO) { readMemoryInfo() }
             val temperature = withContext(Dispatchers.IO) { hottestCelsius(ThermalZones.read()) }
-            val decoded =
-                withContext(Dispatchers.IO) {
-                    runCatching { SlotsClient(settings.port, apiKey).decodedTokens() }.getOrNull()
-                }
+            val decoded = withContext(Dispatchers.IO) { sampledDecodedTokens() }
 
             val now = System.nanoTime() / NANOS_PER_MILLI
             val rate = tokensPerSecond(decoded, previousDecoded, previousAt, now)
@@ -85,8 +84,17 @@ class LogsViewModel(
 
             previousDecoded = decoded
             previousAt = now
-            delay(POLL_MS)
+            delay(POLL_MS.milliseconds)
         }
+    }
+
+    private fun sampledDecodedTokens(): Int? {
+        val port = settings.port
+        val models = ModelsClient(port, apiKey).loadedModelIds()
+        if (models.isEmpty()) return null
+
+        val slots = SlotsClient(port, apiKey)
+        return models.sumOf { model -> runCatching { slots.decodedTokens(model) }.getOrNull() ?: 0 }
     }
 
     private companion object {

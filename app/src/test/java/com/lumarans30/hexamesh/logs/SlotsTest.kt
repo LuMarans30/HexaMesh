@@ -36,4 +36,16 @@ class SlotsTest {
     fun `the first sample of a generation has no rate yet`() {
         assertNull(tokensPerSecond(100, null, 0, 1000))
     }
+
+    @Test
+    fun `slots url selects the model and disables autoload`() {
+        assertEquals(
+            "http://127.0.0.1:8080/slots?model=Qwen3-0.8B&autoload=0",
+            slotsUrl(8080, "Qwen3-0.8B"),
+        )
+        assertEquals(
+            "http://127.0.0.1:8080/slots?model=a%20b&autoload=0",
+            slotsUrl(8080, "a b"),
+        )
+    }
 }

@@ -116,11 +116,12 @@ Phase notes (the load-bearing bits):
   consumer, and building them now would freeze the peer protocol before
   `PeerNode` is defined.
 - **3 —** diagnostics on the Logs tab. Logs: tail the supervisor's
-  `cacheDir/llama-server.log` (written by `engine.rs` `spawn_pump`). tok/s: poll
-  `127.0.0.1:<port>/slots` and diff `n_decoded` between samples — needs `--slots`
-  (in the defaults) and the API key, and is the only live source (`/metrics`'
-  rate gauge only updates at slot reset). Thermal: hottest CPU/GPU zone from
-  `/sys/class/thermal/thermal_zone*`. Memory: `MemAvailable / MemTotal` from
+  `cacheDir/llama-server.log` (written by `engine.rs` `spawn_pump`). tok/s: read the
+  loaded model from `GET /models` (router mode requires a model id) and poll
+  `127.0.0.1:<port>/slots?model=<id>&autoload=0`, diffing `n_decoded` between
+  samples — needs `--slots` (in the defaults) and the API key, and is the only live
+  source (`/metrics`' rate gauge only updates at slot reset). Thermal: hottest
+  CPU/GPU zone from `/sys/class/thermal/thermal_zone*`. Memory: `MemAvailable / MemTotal` from
   `/proc/meminfo` (the server's own RSS excludes GPU-offloaded weights, so it is
   not a useful number). Terminal view is a `LazyColumn` over a ~2000-line capped
   buffer. Per-peer logs are out of scope here.
@@ -175,8 +176,8 @@ Phase notes (the load-bearing bits):
   (`kill(-pid)`, valid because `command.rs` `setsid`s the child and router-spawned
   instances inherit that group), so model grandchildren can no longer orphan a
   SIGKILLed router. Still open: download ownership (`POST /models` vs
-  `ModelDownloadWorker`); `SlotsClient` needs `?model=`; and router clients must
-  send a valid model id (a hardcoded or missing one gets a 400). The single-model
+  `ModelDownloadWorker`); and router clients must send a valid model id (a
+  hardcoded or missing one gets a 400). The single-model
   escape hatch is typing `-m <path>` in Settings (`-m` is unlocked); the
   notification then names that model (`servedModelLabel` reads it back out of the
   args — `--alias`, else the `-m` filename, else `-hf`), while the Manage status
@@ -232,9 +233,8 @@ Phase notes (the load-bearing bits):
   after launch can still race the first browse + ping window (~1s) and inject no
   peers. Discovery stops when the app is backgrounded, so a node started while the
   UI is closed meshes with nothing.
-- In router mode `SlotsClient` polls `/slots` without `?model=`, so tok/s stays
-  blank. `/models?reload=1` is wired (`ModelsClient`), but `/models/load` is not:
-  the app never loads a model over HTTP — clients pick one per request.
+- `/models?reload=1` is wired (`ModelsClient`), but `/models/load` is not: the app
+  never loads a model over HTTP — clients pick one per request.
 - `bridge/Engine.kt` only exposes `start/stop/pollStatus` — no logs/metrics channel.
 
 ## Decisions (do not re-litigate)
