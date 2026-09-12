@@ -19,7 +19,7 @@ class ModelsClientTest {
     fun `finds loaded models among the router list`() {
         val json =
             """{"data":[${entry("a", "unloaded")},${entry("b", "loaded")},""" +
-                    """${entry("c", "downloaded")}],"object":"list"}"""
+                """${entry("c", "downloaded")}],"object":"list"}"""
 
         assertEquals(listOf("b"), parseLoadedModelIds(json))
     }
@@ -35,6 +35,6 @@ class ModelsClientTest {
         id: String,
         status: String,
     ) = """{"id":"$id","aliases":[],"tags":["chat"],"object":"model","owned_by":"llamacpp",""" +
-            """"created":1,"status":{"value":"$status","args":["--host","127.0.0.1"]},""" +
-            """"architecture":{"input_modalities":["text"]},"can_remove":false}"""
+        """"created":1,"status":{"value":"$status","args":["--host","127.0.0.1"]},""" +
+        """"architecture":{"input_modalities":["text"]},"can_remove":false}"""
 }
