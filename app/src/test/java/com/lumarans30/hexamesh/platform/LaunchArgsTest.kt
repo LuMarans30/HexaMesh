@@ -75,6 +75,13 @@ class LaunchArgsTest {
     }
 
     @Test
+    fun `models-max is app-owned and stripped from user args`() {
+        assertEquals(listOf("--models-max"), lockedLaunchFlags(parseLaunchArgs("--models-max 4")))
+        assertEquals(listOf("-t", "6"), effectiveLaunchArgs("-t 6 --models-max 4"))
+        assertEquals(listOf("-t", "6"), effectiveLaunchArgs("-t 6 --models-max=4"))
+    }
+
+    @Test
     fun `parses the last port, space and equals forms`() {
         assertEquals(9090, parseLaunchPort(parseLaunchArgs("--port 9090")))
         assertEquals(9090, parseLaunchPort(parseLaunchArgs("--port=9090")))

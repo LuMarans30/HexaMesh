@@ -152,13 +152,13 @@ Phase notes (the load-bearing bits):
   `adb push`, and arbitrary URLs, and add an HF cache for HF downloads.
   `unset_reserved_args()` strips api-key/model/alias and rewrites host/port per
   child but **not** `--rpc`/`--device`, so mesh offloading is inherited. That
-  inheritance is why `command.rs` appends `--models-max 1` whenever `--rpc` is set:
-  `ggml-rpc-server` serves one client at a time (`listen` backlog 1; `accept` →
-  serve → `accept`), so two live children would leave the second stalled behind
-  the first on the same peer. The router enforces the API key and children listen
-  only on loopback. Child
-  stdout/stderr is forwarded into the router log with a `[port]` prefix, so
-  `llama-server.log` still captures everything (port-tagged, not model-tagged).
+  inheritance is why `command.rs` appends `--models-max 1` whenever `--rpc` is set
+  and `LOCKED_LAUNCH_FLAGS` lists it: `ggml-rpc-server` serves one client at a time
+  (`listen` backlog 1; `accept` → serve → `accept`), so two live children would
+  leave the second stalled behind the first on the same peer. The router enforces
+  the API key and children listen only on loopback. Child stdout/stderr is
+  forwarded into the router log with a `[port]` prefix, so `llama-server.log` still
+  captures everything (port-tagged, not model-tagged).
   Steps 1–3 landed: the app is **router-only** — it always launches
   `llama-server` with `--models-dir <models dir>` and never `-m`, and there is no
   per-model selection or mode toggle. `LLAMA_CACHE` is pinned to
@@ -248,15 +248,17 @@ Phase notes (the load-bearing bits):
    expire; discovered ones lapse after `PEER_TTL_MS`.
 6. **Launch args:** one text field of editable flags, the single source of truth,
    port included (`--port`, default 8080). The app injects `--host`, `--api-key`,
-   `--device`, `--rpc` and `--models-dir` and strips those (plus their values) if
-   the user types them, so the app-owned values always win. `-m`/`--model` are
-   **not** locked: typing one pins a single model, which makes `--models-dir`
-   inert and serves just that file (llama.cpp is single-model whenever
-   `model.path` is set). Rust builds only those required args; everything else —
-   `-m` included — arrives via `ServerConfig.extraArgs` (newline-joined). The app
+   `--device`, `--rpc`, `--models-dir` and `--models-max` and strips those (plus
+   their values) if the user types them, so the app-owned values always win.
+   `-m`/`--model` are **not** locked: typing one pins a single model, which makes
+   `--models-dir` inert and serves just that file (llama.cpp is single-model
+   whenever `model.path` is set). Rust builds only those required args; everything
+   else — `-m` included — arrives via `ServerConfig.extraArgs` (newline-joined). The app
    parses `--port` back out (`parseLaunchPort`) to drive the health probe and the
    LAN URL. `--rpc` is app-owned too: the app strips a user-typed one and injects
    the reachable mesh peers (`ServerConfig.rpcServers`) only when the node starts.
+   `--models-max` is app-owned as well but injected by Rust only while meshing, so
+   the router stays at one child (see phase 5).
 
 Open questions (add new ones below instead of reopening the above):
 

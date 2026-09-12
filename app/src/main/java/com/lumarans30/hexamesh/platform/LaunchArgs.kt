@@ -4,11 +4,12 @@ import java.io.File
 
 /**
  * Flags the app injects; matching user tokens are stripped so the injected value
- * wins. `-m` is deliberately absent: pinning a model overrides `--models-dir`.
- * The port is parsed from the args, not locked.
+ * wins. `--models-max` is injected only while meshing (Rust caps the router to one
+ * child when `--rpc` is set). `-m` is deliberately absent: pinning a model
+ * overrides `--models-dir`. The port is parsed from the args, not locked.
  */
 val LOCKED_LAUNCH_FLAGS =
-    setOf("--host", "--api-key", "--device", "--rpc", "--models-dir")
+    setOf("--host", "--api-key", "--device", "--rpc", "--models-dir", "--models-max")
 
 /** Editable defaults. `-ngl` assumes the GPU backend. */
 const val DEFAULT_LAUNCH_ARGS = "--port 8080 --slots -fa on -t 6 -ub 16 --no-warmup -ngl 99"
