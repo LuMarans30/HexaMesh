@@ -90,7 +90,7 @@ reason.
 | 2.5 | Custom launch args: editable defaults, locked required flags | ✅ landed |
 | 3 | Logs tab (local diagnostics only) | ✅ landed |
 | 4 | Mesh tab + per-peer logs | 🚧 coordinator offloads to peers; worker role + logs pending |
-| 5 | Router mode + HF cache (one listener, many models) | 🚧 `LLAMA_CACHE` wired; router launch + source merge pending |
+| 5 | Router mode + HF cache (one listener, many models) | 🚧 router launch + `LLAMA_CACHE` landed; reload endpoint + id-based models pending |
 
 Phase notes (the load-bearing bits):
 
@@ -139,16 +139,21 @@ Phase notes (the load-bearing bits):
   router enforces the API key and children listen only on loopback. Child
   stdout/stderr is forwarded into the router log with a `[port]` prefix, so
   `llama-server.log` still captures everything (port-tagged, not model-tagged).
-  Step 1 landed: `LLAMA_CACHE` is pinned to `<externalFilesDir>/hf-cache`
+  Steps 1–2 landed: `LLAMA_CACHE` is pinned to `<externalFilesDir>/hf-cache`
   (`ModelRepository.hfCacheDir()` → `ServerConfig.llamaCacheDir` → Rust), because
   Android has no usable `$HOME` and `hf_cache::get_cache_directory()` would
-  otherwise resolve to an unwritable path. Still open: launching without `-m`
-  supersedes decision #6's locked `-m` and the Rust `needs_model` precondition;
-  the 4 s `TERM_GRACE` is shorter than the router's 10 s per-model
-  `stop-timeout`, and model grandchildren are not covered by the supervisor's
-  `PDEATHSIG`; download ownership (`POST /models` vs `ModelDownloadWorker`);
-  `SlotsClient` needs `?model=`; and HF ids clash with the path-based
-  `Model`/`NodeState`/repository.
+  otherwise resolve to an unwritable path; and the Settings tab has a **Router
+  mode** toggle (`ServerSettings.routerMode`). Router mode threads
+  `ServerConfig.modelsDir` to Rust, where `build_server_command` drops `-m` for
+  `--models-dir`, `engine.rs` skips the model preflight, and `NodeState` carries
+  a `router` flag so the UI/notification show "all models" instead of a file
+  name. Shutdown now signals the child's **process group** (`kill(-pid)`, valid
+  because `command.rs` `setsid`s the child and router-spawned instances inherit
+  that group), so model grandchildren can no longer orphan a SIGKILL'd router.
+  Still open: download ownership (`POST /models` vs `ModelDownloadWorker`);
+  `SlotsClient` needs `?model=`, and nothing calls `/models?reload=1` or
+  `/models/load`, so imports need a restart; HF ids clash with the path-based
+  `Model`/repository.
 
 ## Gotchas
 
@@ -180,6 +185,9 @@ Phase notes (the load-bearing bits):
 - Peers only populate while the Mesh tab has been open (discovery and pings live
   there), so starting the node from Manage right after launch meshes with
   nothing.
+- In router mode `SlotsClient` polls `/slots` without `?model=`, so tok/s stays
+  blank, and nothing calls `/models?reload=1` or `/models/load`, so a model
+  imported while the router runs is not listed until the next restart.
 - `bridge/Engine.kt` only exposes `start/stop/pollStatus` — no logs/metrics channel.
 
 ## Decisions (do not re-litigate)
@@ -207,7 +215,9 @@ Phase notes (the load-bearing bits):
    (newline-joined). The app parses `--port` back out (`parseLaunchPort`) to drive
    the health probe and the LAN URL. `--rpc` is app-owned too: the app strips a
    user-typed one and injects the reachable mesh peers (`ServerConfig.rpcServers`)
-   only when the node starts.
+   only when the node starts. `--models-dir` is app-owned the same way, and `-m`
+   is injected only in single-model mode: with router mode on (phase 5) the
+   directory is passed instead and `-m` is dropped.
 
 Open questions (add new ones below instead of reopening the above):
 
