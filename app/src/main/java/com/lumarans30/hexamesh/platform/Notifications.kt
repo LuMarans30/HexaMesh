@@ -100,7 +100,7 @@ class Notifications(
                 } else {
                     app.getString(
                         R.string.notif_running,
-                        modelLabel ?: app.getString(R.string.notif_all_models),
+                        modelLabel ?: app.getString(R.string.all_models),
                     )
                 }
             }

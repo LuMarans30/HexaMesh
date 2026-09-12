@@ -102,7 +102,7 @@ fun nodeScreen(
                 .verticalScroll(rememberScrollState())
                 .padding(24.dp),
     ) {
-        statusHero(nodeState, state.apiKey)
+        statusHero(nodeState, state.apiKey, state.modelLabel)
 
         Spacer(Modifier.height(24.dp))
 
@@ -546,13 +546,14 @@ private fun grantAccessDialog(
 private fun statusHero(
     state: NodeState,
     apiKey: String,
+    modelLabel: String?,
 ) {
     when (state) {
         is NodeState.Running -> {
             if (state.isWorker) {
                 workerCard(endpoint = state.endpoint)
             } else {
-                servingCard(serverUrl = state.endpoint, apiKey = apiKey)
+                servingCard(serverUrl = state.endpoint, apiKey = apiKey, modelLabel = modelLabel)
             }
         }
 
@@ -694,6 +695,7 @@ private fun workerCard(endpoint: String) {
 private fun servingCard(
     serverUrl: String,
     apiKey: String,
+    modelLabel: String?,
 ) {
     val accent = MaterialTheme.colorScheme.primary
 
@@ -724,7 +726,7 @@ private fun servingCard(
                         style = MaterialTheme.typography.titleMedium,
                     )
                     Text(
-                        text = "all models",
+                        text = modelLabel ?: stringResource(R.string.all_models),
                         color = accent.copy(alpha = 0.8f),
                         style = MaterialTheme.typography.bodyMedium,
                         maxLines = 1,

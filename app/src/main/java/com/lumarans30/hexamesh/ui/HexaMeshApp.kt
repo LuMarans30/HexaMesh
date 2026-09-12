@@ -40,6 +40,8 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.lumarans30.hexamesh.R
 import com.lumarans30.hexamesh.node.NodeState
+import com.lumarans30.hexamesh.platform.effectiveLaunchArgs
+import com.lumarans30.hexamesh.platform.servedModelLabel
 import kotlinx.coroutines.launch
 
 /** Wires the view models to the tabbed shell; the composables below take plain state. */
@@ -83,6 +85,7 @@ fun hexaMeshApp(
             scanning = meshScanning,
             batteryExempt = batteryExempt,
             apiKey = nodeViewModel.apiKey,
+            modelLabel = servedModelLabel(effectiveLaunchArgs(launchArgs)),
             transfer = transfer,
         )
 

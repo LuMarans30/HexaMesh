@@ -10,6 +10,7 @@ data class ManagerUiState(
     val scanning: Boolean = false,
     val batteryExempt: Boolean = false,
     val apiKey: String = "",
+    val modelLabel: String? = null,
     val transfer: TransferUiState = TransferUiState(),
 )
 

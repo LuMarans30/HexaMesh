@@ -32,7 +32,7 @@
     <string name="notif_error">Failed: %1$s</string>
     <string name="notif_stopped">Node stopped</string>
     <string name="notif_server">llama-server</string>
-    <string name="notif_all_models">all models</string>
+    <string name="all_models">all models</string>
     <string name="notif_worker_running">Providing compute to the mesh</string>
 
     <string name="state_server_died">llama-server stopped responding.</string>
