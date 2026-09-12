@@ -186,6 +186,11 @@ Phase notes (the load-bearing bits):
   bug (`NsdService: Key cannot be empty`). The advertiser always publishes
   `free_mem`/`total_mem`, so the record is never empty.
 - **Icons:** self-contained drawables only.
+- **Model list parity:** `isLoadableModel` mirrors llama.cpp's
+  `load_from_models_dir` for top-level files — lowercase `.gguf` only, skipping
+  `mmproj` and `mtp-`/`dspark-`/`dflash-` sidecars — and `Model.id` is the
+  filename minus `.gguf`, i.e. the router's `model` value. Keep both in step with
+  upstream or the list will advertise ids that 404.
 
 ## Known debt
 
