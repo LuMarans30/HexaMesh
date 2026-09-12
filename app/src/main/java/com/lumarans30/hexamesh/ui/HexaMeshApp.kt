@@ -117,7 +117,6 @@ fun hexaMeshApp(
                 onDiscoverableChange = meshViewModel::setDiscoverable,
                 onWorkerChange = meshViewModel::setWorker,
                 onUsePeersChange = meshViewModel::setUsePeers,
-                onObserve = meshViewModel::observe,
             )
         }
 

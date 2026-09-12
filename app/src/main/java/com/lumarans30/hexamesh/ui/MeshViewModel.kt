@@ -3,6 +3,7 @@ package com.lumarans30.hexamesh.ui
 import android.app.Application
 import android.os.Build
 import androidx.lifecycle.AndroidViewModel
+import androidx.lifecycle.viewModelScope
 import com.lumarans30.hexamesh.bridge.ServerRole
 import com.lumarans30.hexamesh.logs.readMemoryInfo
 import com.lumarans30.hexamesh.mesh.DEFAULT_RPC_PORT
@@ -21,16 +22,18 @@ import com.lumarans30.hexamesh.platform.NsdAdvertiser
 import com.lumarans30.hexamesh.platform.NsdDiscovery
 import com.lumarans30.hexamesh.platform.ServerSettings
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.coroutineScope
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeoutOrNull
 import kotlin.time.Duration.Companion.milliseconds
 
 /** Discovers mesh peers on the LAN, pings them, and merges the fallback list. */
@@ -61,6 +64,18 @@ class MeshViewModel(
     private val _worker = MutableStateFlow(serverSettings.role == ServerRole.RPC)
     val worker: StateFlow<Boolean> = _worker.asStateFlow()
 
+    private var observation: Job? = null
+
+    fun start() {
+        if (observation?.isActive == true) return
+        observation = viewModelScope.launch { observe() }
+    }
+
+    fun stop() {
+        observation?.cancel()
+        observation = null
+    }
+
     fun applyFallbackPeers(text: String) = settings.setFallbackPeers(text)
 
     fun setDiscoverable(discoverable: Boolean) = settings.setDiscoverable(discoverable)
@@ -87,8 +102,7 @@ class MeshViewModel(
             ?.joinToString(",") { "${it.host}:${it.port}" }
     }
 
-    /** Browses, advertises and pings while the Mesh tab is composed. */
-    suspend fun observe() =
+    private suspend fun observe() =
         coroutineScope {
             launch {
                 combine(discovery.discover(), fallbackPeers, selfName) { discovered, fallback, self ->
@@ -115,7 +129,9 @@ class MeshViewModel(
                                 }
                             }
                     }
-                    delay(PING_INTERVAL_MS.milliseconds)
+                    withTimeoutOrNull(PING_INTERVAL_MS.milliseconds) {
+                        merged.first { it != targets }
+                    }
                 }
             }
 

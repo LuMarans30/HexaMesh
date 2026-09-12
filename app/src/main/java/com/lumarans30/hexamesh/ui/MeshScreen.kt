@@ -21,7 +21,6 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -50,12 +49,11 @@ class MeshActions(
     val onDiscoverableChange: (Boolean) -> Unit,
     val onWorkerChange: (Boolean) -> Unit,
     val onUsePeersChange: (Boolean) -> Unit,
-    val onObserve: suspend () -> Unit,
 )
 
 /**
- * Mesh tab: live peer discovery plus the fallback list. Discovery runs only while
- * this screen is composed, so browsing stops when the user leaves the tab.
+ * Mesh tab: the live peer list plus the fallback list. Discovery itself is owned by
+ * [MeshViewModel] and runs for as long as the app is foregrounded.
  */
 @Composable
 fun meshScreen(
@@ -63,8 +61,6 @@ fun meshScreen(
     actions: MeshActions,
     modifier: Modifier = Modifier,
 ) {
-    LaunchedEffect(Unit) { actions.onObserve() }
-
     LazyColumn(
         modifier = modifier.fillMaxSize(),
         contentPadding = PaddingValues(24.dp),

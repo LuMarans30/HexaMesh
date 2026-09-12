@@ -131,14 +131,18 @@ Phase notes (the load-bearing bits):
   `NsdDiscovery` browses `_hexamesh._tcp`, `NsdAdvertiser` publishes this device
   (Discoverable toggle), peers publish `free_mem`/`total_mem` TXT, and
   `MeshViewModel` pings each peer over TCP (`tcpLatencyMs`) so `--rpc` selection
-  uses `isReachable` + `rankPeers`. `usePeers` gates injection, and a start
-  carries the endpoints through `MeshService` → `ServerConfig.rpcServers` → Rust
-  `--rpc`. Verified over the LAN against a PC `ggml-rpc-server`: the peer's GPU
-  took the weights and served generation. This phone can also be a worker: the
-  Mesh tab's `Provide compute` toggle persists `ServerRole.RPC`, and the node
-  then runs `ggml-rpc-server` bound to `DEFAULT_RPC_PORT` (advertised and probed
-  over the same port). **Next:** the Canvas view and per-peer logs. Prefer one
-  merged, timestamped, peer-filterable log stream.
+  uses `isReachable` + `rankPeers`. Discovery is owned by `MeshViewModel` and run
+  from the app-foreground lifecycle (`MainActivity.onStart`/`onStop`), so peers are
+  known on any tab and `--rpc` injection no longer requires the Mesh tab to have
+  been opened; pings fire on peer-set changes, not only on the 5s tick. `usePeers`
+  gates injection, and a start carries the endpoints through `MeshService` →
+  `ServerConfig.rpcServers` → Rust `--rpc`. Verified over the LAN against a PC
+  `ggml-rpc-server`: the peer's GPU took the weights and served generation. This
+  phone can also be a worker: the Mesh tab's `Provide compute` toggle persists
+  `ServerRole.RPC`, and the node then runs `ggml-rpc-server` bound to
+  `DEFAULT_RPC_PORT` (advertised and probed over the same port). **Next:** the
+  Canvas view and per-peer logs. Prefer one merged, timestamped, peer-filterable
+  log stream.
 - **5 —** one listener, many models. `llama-server` **without `-m`** is a
   *router*: it spawns one child per model on a loopback port and proxies the
   public port, exposing `GET/POST /models`, `/models/load`, `/models/unload`,
@@ -183,8 +187,11 @@ Phase notes (the load-bearing bits):
 
 - **Compose state loss:** a raw `when(tab)` disposes the previous tab; use
   `SaveableStateHolder` to keep per-tab scroll position.
-- **Polling lifecycle:** tie all polling to the composed tab (`LaunchedEffect`);
-  never poll in the background.
+- **Polling lifecycle:** tie per-tab polling (logs, metrics) to the composed tab
+  (`LaunchedEffect`); never poll in the background. Mesh discovery is the
+  deliberate exception: `MeshViewModel` owns it and scopes it to app foreground
+  (`MainActivity.onStart`/`onStop`) so it is available on every tab and can feed
+  `--rpc` at start time.
 - **`--device` excludes RPC peers:** llama.cpp uses only the devices named by
   `--device`, and RPC peers register separately. The supervisor omits `--device`
   whenever `rpcServers` is set, so the local GPU and the peers are all eligible.
@@ -209,9 +216,10 @@ Phase notes (the load-bearing bits):
   single-client server; while llama.cpp holds the connection a probe only lands
   in the accept backlog. It has not disturbed a clean session, but a dedicated
   health port would be sturdier.
-- Peers only populate while the Mesh tab has been open (discovery and pings live
-  there), so starting the node from Manage right after launch meshes with
-  nothing.
+- Discovery is foreground-only and mDNS is not instant: an immediate Start right
+  after launch can still race the first browse + ping window (~1s) and inject no
+  peers. Discovery stops when the app is backgrounded, so a node started while the
+  UI is closed meshes with nothing.
 - In router mode `SlotsClient` polls `/slots` without `?model=`, so tok/s stays
   blank. `/models?reload=1` is wired (`ModelsClient`), but `/models/load` is not:
   the app never loads a model over HTTP — clients pick one per request.

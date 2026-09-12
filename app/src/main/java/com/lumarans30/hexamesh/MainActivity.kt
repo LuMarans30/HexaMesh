@@ -68,10 +68,20 @@ class MainActivity : ComponentActivity() {
         requestNotificationPermission()
     }
 
+    override fun onStart() {
+        super.onStart()
+        meshViewModel.start()
+    }
+
     override fun onResume() {
         super.onResume()
         transferViewModel.onResumed()
         scheduleBatteryRefresh()
+    }
+
+    override fun onStop() {
+        meshViewModel.stop()
+        super.onStop()
     }
 
     override fun onWindowFocusChanged(hasFocus: Boolean) {
