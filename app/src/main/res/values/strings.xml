@@ -5,6 +5,7 @@
     <string name="stop_node">Stop Node</string>
     <string name="start_node">Start Node</string>
     <string name="starting_node">Starting...</string>
+    <string name="scanning_peers">Scanning for peers...</string>
     <string name="stopping_node">Stopping...</string>
 
     <string name="models">Models</string>

@@ -32,9 +32,11 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeoutOrNull
 import kotlin.time.Duration.Companion.milliseconds
 
 /** Discovers mesh peers on the LAN, pings them, and merges the fallback list. */
@@ -55,6 +57,9 @@ class MeshViewModel(
 
     private val _peers = MutableStateFlow<List<PeerNode>>(emptyList())
     val peers: StateFlow<List<PeerNode>> = _peers.asStateFlow()
+
+    private val _scanning = MutableStateFlow(false)
+    val scanning: StateFlow<Boolean> = _scanning.asStateFlow()
 
     val fallbackPeers: StateFlow<String> = settings.fallbackPeers
 
@@ -112,6 +117,21 @@ class MeshViewModel(
 
     fun onNodeState(state: NodeState) {
         if (state is NodeState.Stopped || state is NodeState.Error) wired.value = emptySet()
+    }
+
+    suspend fun ensureFreshPeers(timeoutMs: Long = PEER_WAIT_MS) {
+        if (!usePeers.value || _worker.value) return
+        if (_peers.value.any { isReachable(it, System.currentTimeMillis()) }) return
+
+        start()
+        _scanning.value = true
+        try {
+            withTimeoutOrNull(timeoutMs.milliseconds) {
+                _peers.first { peers -> peers.any { isReachable(it, System.currentTimeMillis()) } }
+            }
+        } finally {
+            _scanning.value = false
+        }
     }
 
     private suspend fun observe() =
@@ -174,5 +194,6 @@ class MeshViewModel(
 
     private companion object {
         const val PING_INTERVAL_MS = 5_000L
+        const val PEER_WAIT_MS = 2_000L
     }
 }

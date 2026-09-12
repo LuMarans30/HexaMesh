@@ -28,6 +28,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.saveable.rememberSaveableStateHolder
 import androidx.compose.runtime.setValue
@@ -39,6 +40,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.lumarans30.hexamesh.R
 import com.lumarans30.hexamesh.node.NodeState
+import kotlinx.coroutines.launch
 
 /** Wires the view models to the tabbed shell; the composables below take plain state. */
 @Composable
@@ -64,6 +66,9 @@ fun hexaMeshApp(
     val meshDiscoverable by meshViewModel.discoverable.collectAsStateWithLifecycle()
     val meshWorker by meshViewModel.worker.collectAsStateWithLifecycle()
     val meshUsePeers by meshViewModel.usePeers.collectAsStateWithLifecycle()
+    val meshScanning by meshViewModel.scanning.collectAsStateWithLifecycle()
+
+    val scope = rememberCoroutineScope()
 
     LaunchedEffect(nodeState) {
         meshViewModel.onNodeState(nodeState)
@@ -73,6 +78,7 @@ fun hexaMeshApp(
     val manager =
         ManagerUiState(
             node = nodeState,
+            scanning = meshScanning,
             batteryExempt = batteryExempt,
             apiKey = nodeViewModel.apiKey,
             transfer = transfer,
@@ -101,7 +107,12 @@ fun hexaMeshApp(
                     onOpenAllFilesSettings()
                 },
                 onGrantDismiss = transferViewModel::onGrantDismiss,
-                onStart = { nodeViewModel.start(meshViewModel.rpcEndpoints()) },
+                onStart = {
+                    scope.launch {
+                        meshViewModel.ensureFreshPeers()
+                        nodeViewModel.start(meshViewModel.rpcEndpoints())
+                    }
+                },
                 onStop = nodeViewModel::stop,
                 onFixBattery = onFixBattery,
             )
@@ -180,6 +191,7 @@ private fun hexaMeshShell(
             Column {
                 nodeActionBar(
                     state = manager.node,
+                    scanning = manager.scanning,
                     onStart = managerActions.onStart,
                     onStop = managerActions.onStop,
                 )
@@ -218,10 +230,11 @@ private fun hexaMeshShell(
 @Composable
 private fun nodeActionBar(
     state: NodeState,
+    scanning: Boolean,
     onStart: () -> Unit,
     onStop: () -> Unit,
 ) {
-    val busy = state is NodeState.Starting || state is NodeState.Stopping
+    val busy = scanning || state is NodeState.Starting || state is NodeState.Stopping
     val running = state is NodeState.Running
     val enabled =
         when {
@@ -252,10 +265,10 @@ private fun nodeActionBar(
                     Spacer(Modifier.width(12.dp))
                     Text(
                         stringResource(
-                            if (state is NodeState.Starting) {
-                                R.string.starting_node
-                            } else {
-                                R.string.stopping_node
+                            when {
+                                scanning -> R.string.scanning_peers
+                                state is NodeState.Starting -> R.string.starting_node
+                                else -> R.string.stopping_node
                             },
                         ),
                     )

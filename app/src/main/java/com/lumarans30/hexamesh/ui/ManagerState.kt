@@ -7,6 +7,7 @@ import com.lumarans30.hexamesh.node.NodeState
 /** Snapshot the Manage screen renders. */
 data class ManagerUiState(
     val node: NodeState = NodeState.Stopped,
+    val scanning: Boolean = false,
     val batteryExempt: Boolean = false,
     val apiKey: String = "",
     val transfer: TransferUiState = TransferUiState(),

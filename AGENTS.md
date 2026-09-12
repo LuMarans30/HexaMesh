@@ -234,10 +234,12 @@ Phase notes (the load-bearing bits):
   single-client server. The probe now skips peers the running node has wired in,
   so it no longer measures its own accept backlog; a dedicated health port would
   still be sturdier for probing while any node holds the port.
-- Discovery is foreground-only and mDNS is not instant: an immediate Start right
-  after launch can still race the first browse + ping window (~1s) and inject no
-  peers. Discovery stops when the app is backgrounded, so a node started while the
-  UI is closed meshes with nothing.
+- Discovery is foreground-only and mDNS is not instant. The cold-start race is
+  handled by `MeshViewModel.ensureFreshPeers()`: Start (with meshing on) waits up
+  to 2 s for the running sweep to yield a reachable peer before it injects `--rpc`,
+  surfacing the wait as "Scanning for peers..." and returning at once when a peer is
+  already reachable. Discovery still stops when the app is backgrounded, so a node
+  started while the UI is closed meshes with nothing.
 - `/models?reload=1` is wired (`ModelsClient`), but `/models/load` is not: the app
   never loads a model over HTTP — clients pick one per request.
 - `bridge/Engine.kt` only exposes `start/stop/pollStatus` — no logs/metrics channel.
