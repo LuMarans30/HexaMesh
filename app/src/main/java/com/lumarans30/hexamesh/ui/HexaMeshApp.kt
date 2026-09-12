@@ -175,7 +175,7 @@ private fun hexaMeshShell(
                         Spacer(Modifier.width(10.dp))
                         Text(stringResource(R.string.app_name))
                     }
-                }
+                },
             )
         },
         bottomBar = {
@@ -191,10 +191,11 @@ private fun hexaMeshShell(
     ) { innerPadding ->
         tabState.SaveableStateProvider(tab.name) {
             when (tab) {
-                HexaTab.Manage ->
+                HexaTab.Manage -> {
                     nodeScreen(state, actions, snackbarHostState, Modifier.padding(innerPadding))
+                }
 
-                HexaTab.Mesh ->
+                HexaTab.Mesh -> {
                     meshScreen(
                         peers = meshPeers,
                         fallbackPeers = fallbackPeers,
@@ -208,22 +209,25 @@ private fun hexaMeshShell(
                         observe = observePeers,
                         modifier = Modifier.padding(innerPadding),
                     )
+                }
 
-                HexaTab.Logs ->
+                HexaTab.Logs -> {
                     logsScreen(
                         lines = logLines,
                         metrics = nodeMetrics,
                         observe = observeLogs,
                         modifier = Modifier.padding(innerPadding),
                     )
+                }
 
-                HexaTab.Settings ->
+                HexaTab.Settings -> {
                     settingsScreen(
                         launchArgs = launchArgs,
                         onApply = onApplySettings,
                         snackbarHostState = snackbarHostState,
                         modifier = Modifier.padding(innerPadding),
                     )
+                }
             }
         }
     }
@@ -267,9 +271,12 @@ private fun nodeActionBar(
                     Spacer(Modifier.width(12.dp))
                     Text(
                         stringResource(
-                            if (state is NodeState.Starting) R.string.starting_node
-                            else R.string.stopping_node
-                        )
+                            if (state is NodeState.Starting) {
+                                R.string.starting_node
+                            } else {
+                                R.string.stopping_node
+                            },
+                        ),
                     )
                 }
 
@@ -290,7 +297,10 @@ private fun nodeActionBar(
 }
 
 @Composable
-private fun tabBar(selected: HexaTab, onSelect: (HexaTab) -> Unit) {
+private fun tabBar(
+    selected: HexaTab,
+    onSelect: (HexaTab) -> Unit,
+) {
     NavigationBar {
         HexaTab.entries.forEach { tab ->
             NavigationBarItem(

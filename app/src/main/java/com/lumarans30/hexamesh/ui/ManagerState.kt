@@ -35,7 +35,11 @@ class ManagerActions(
     val onFixBattery: () -> Unit,
 )
 
-data class DownloadStatus(val fileName: String, val downloaded: Long, val total: Long) {
+data class DownloadStatus(
+    val fileName: String,
+    val downloaded: Long,
+    val total: Long,
+) {
     val fraction: Float
         get() = if (total > 0) (downloaded.toFloat() / total).coerceIn(0f, 1f) else 0f
 
@@ -51,7 +55,12 @@ data class DownloadStatus(val fileName: String, val downloaded: Long, val total:
 sealed interface ImportPrompt {
     val name: String
 
-    data class Choose(override val name: String, val sizeBytes: Long) : ImportPrompt
+    data class Choose(
+        override val name: String,
+        val sizeBytes: Long,
+    ) : ImportPrompt
 
-    data class Grant(override val name: String) : ImportPrompt
+    data class Grant(
+        override val name: String,
+    ) : ImportPrompt
 }

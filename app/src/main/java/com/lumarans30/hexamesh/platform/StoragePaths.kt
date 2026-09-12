@@ -47,13 +47,19 @@ fun realPath(uri: Uri): String? {
 }
 
 /** Display name for a picked document. */
-fun displayName(context: Context, uri: Uri): String? =
+fun displayName(
+    context: Context,
+    uri: Uri,
+): String? =
     context.contentResolver
         .query(uri, arrayOf(OpenableColumns.DISPLAY_NAME), null, null, null)
         ?.use { cursor -> if (cursor.moveToFirst()) cursor.getString(0) else null }
 
 /** Size of a picked document, or null when the provider does not report one. */
-fun documentSize(context: Context, uri: Uri): Long? =
+fun documentSize(
+    context: Context,
+    uri: Uri,
+): Long? =
     context.contentResolver
         .query(uri, arrayOf(OpenableColumns.SIZE), null, null, null)
         ?.use { cursor -> if (cursor.moveToFirst() && !cursor.isNull(0)) cursor.getLong(0) else null }

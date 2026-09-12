@@ -69,7 +69,10 @@ private fun metricsPanel(metrics: NodeMetrics) {
 }
 
 @Composable
-private fun metricValue(label: String, value: String) {
+private fun metricValue(
+    label: String,
+    value: String,
+) {
     Column {
         Text(
             text = label,
@@ -83,11 +86,9 @@ private fun metricValue(label: String, value: String) {
     }
 }
 
-private fun rate(value: Double?): String =
-    if (value == null) UNAVAILABLE else String.format(Locale.US, "%.1f", value)
+private fun rate(value: Double?): String = if (value == null) UNAVAILABLE else String.format(Locale.US, "%.1f", value)
 
-private fun degrees(value: Double?): String =
-    if (value == null) UNAVAILABLE else String.format(Locale.US, "%.1f\u00b0C", value)
+private fun degrees(value: Double?): String = if (value == null) UNAVAILABLE else String.format(Locale.US, "%.1f\u00b0C", value)
 
 private fun memory(info: MemoryInfo?): String =
     if (info == null) {
@@ -106,7 +107,10 @@ private const val GIB_BYTES = 1024.0 * 1024.0 * 1024.0
 private const val UNAVAILABLE = "--"
 
 @Composable
-private fun logsList(lines: List<String>, modifier: Modifier) {
+private fun logsList(
+    lines: List<String>,
+    modifier: Modifier,
+) {
     val listState = rememberLazyListState()
 
     val atBottom by remember {

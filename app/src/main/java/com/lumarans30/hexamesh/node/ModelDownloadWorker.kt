@@ -11,23 +11,24 @@ import androidx.work.ForegroundInfo
 import androidx.work.WorkerParameters
 import androidx.work.workDataOf
 import com.lumarans30.hexamesh.R
-import java.io.File
-import java.io.IOException
-import java.net.HttpURLConnection
-import java.net.URL
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.withContext
+import java.io.File
+import java.io.IOException
+import java.net.HttpURLConnection
+import java.net.URL
 
 /**
  * Downloads a `.gguf` into the models directory as a foreground worker, streaming
  * to a `.part` file that is renamed only when complete.
  */
-class ModelDownloadWorker(appContext: Context, params: WorkerParameters) :
-    CoroutineWorker(appContext, params) {
-
+class ModelDownloadWorker(
+    appContext: Context,
+    params: WorkerParameters,
+) : CoroutineWorker(appContext, params) {
     override suspend fun doWork(): Result {
         val url = inputData.getString(KEY_URL)
         val fileName = inputData.getString(KEY_FILE_NAME)
@@ -42,7 +43,7 @@ class ModelDownloadWorker(appContext: Context, params: WorkerParameters) :
 
         if (target.exists()) {
             return Result.failure(
-                workDataOf(KEY_ERROR to "A model named $fileName already exists.")
+                workDataOf(KEY_ERROR to "A model named $fileName already exists."),
             )
         }
 
@@ -58,7 +59,11 @@ class ModelDownloadWorker(appContext: Context, params: WorkerParameters) :
         }
     }
 
-    private suspend fun download(url: String, temp: File, target: File): Result =
+    private suspend fun download(
+        url: String,
+        temp: File,
+        target: File,
+    ): Result =
         withContext(Dispatchers.IO) {
             runCatching { setForeground(foregroundInfo(target.name, percent = null)) }
 
@@ -110,11 +115,15 @@ class ModelDownloadWorker(appContext: Context, params: WorkerParameters) :
             if (!temp.renameTo(target)) throw IOException("Could not finalise the downloaded file.")
 
             Result.success(
-                workDataOf(KEY_FILE_NAME to target.name, KEY_PATH to target.absolutePath)
+                workDataOf(KEY_FILE_NAME to target.name, KEY_PATH to target.absolutePath),
             )
         }
 
-    private suspend fun report(fileName: String, downloaded: Long, total: Long) {
+    private suspend fun report(
+        fileName: String,
+        downloaded: Long,
+        total: Long,
+    ) {
         val percent = if (total > 0) ((downloaded * 100) / total).toInt() else -1
         setProgress(
             workDataOf(
@@ -122,15 +131,19 @@ class ModelDownloadWorker(appContext: Context, params: WorkerParameters) :
                 KEY_DOWNLOADED to downloaded,
                 KEY_TOTAL to total,
                 KEY_PROGRESS to percent,
-            )
+            ),
         )
         runCatching { setForeground(foregroundInfo(fileName, percent.takeIf { it >= 0 })) }
     }
 
-    private fun foregroundInfo(fileName: String, percent: Int?): ForegroundInfo {
+    private fun foregroundInfo(
+        fileName: String,
+        percent: Int?,
+    ): ForegroundInfo {
         ensureChannel()
         val notification =
-            Notification.Builder(applicationContext, CHANNEL_ID)
+            Notification
+                .Builder(applicationContext, CHANNEL_ID)
                 .setSmallIcon(R.drawable.ic_stat_hexagon)
                 .setContentTitle("Downloading model")
                 .setContentText(fileName)
@@ -149,7 +162,7 @@ class ModelDownloadWorker(appContext: Context, params: WorkerParameters) :
     private fun ensureChannel() {
         val manager = applicationContext.getSystemService(NotificationManager::class.java) ?: return
         manager.createNotificationChannel(
-            NotificationChannel(CHANNEL_ID, "Model downloads", NotificationManager.IMPORTANCE_LOW)
+            NotificationChannel(CHANNEL_ID, "Model downloads", NotificationManager.IMPORTANCE_LOW),
         )
     }
 

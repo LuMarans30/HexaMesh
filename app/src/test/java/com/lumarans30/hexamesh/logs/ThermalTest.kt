@@ -5,7 +5,6 @@ import org.junit.Assert.assertNull
 import org.junit.Test
 
 class ThermalTest {
-
     @Test
     fun `picks the hottest cpu or gpu zone`() {
         val zones =

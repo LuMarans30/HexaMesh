@@ -5,7 +5,6 @@ import org.junit.Assert.assertNull
 import org.junit.Test
 
 class PeerRecordsTest {
-
     @Test
     fun `a resolved record maps to a discovered peer with txt stats`() {
         val peer =

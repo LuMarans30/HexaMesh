@@ -13,11 +13,9 @@ object ThermalZones {
                 val type = read(File(zone, "type")) ?: return@mapNotNull null
                 val temp = read(File(zone, "temp"))?.toIntOrNull() ?: return@mapNotNull null
                 type to temp
-            }
-            .orEmpty()
+            }.orEmpty()
 
-    private fun read(file: File): String? =
-        runCatching { file.readText().trim() }.getOrNull()?.takeIf { it.isNotEmpty() }
+    private fun read(file: File): String? = runCatching { file.readText().trim() }.getOrNull()?.takeIf { it.isNotEmpty() }
 }
 
 /** Hottest CPU or GPU zone in Celsius, or null when the device exposes neither. */

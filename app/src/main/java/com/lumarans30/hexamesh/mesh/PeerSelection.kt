@@ -14,13 +14,17 @@ fun rankPeers(peers: List<PeerNode>): List<PeerNode> =
     peers.sortedWith(
         compareByDescending<PeerNode> { it.stats.freeMemoryBytes ?: -1L }
             .thenBy { it.stats.latencyMs ?: Long.MAX_VALUE }
-            .thenBy { it.id }
+            .thenBy { it.id },
     )
 
 /**
  * Pinging and freshness gate for `--rpc` selection. Manual peers never expire.
  */
-fun isReachable(peer: PeerNode, nowMs: Long, maxAgeMs: Long = PEER_TTL_MS): Boolean {
+fun isReachable(
+    peer: PeerNode,
+    nowMs: Long,
+    maxAgeMs: Long = PEER_TTL_MS,
+): Boolean {
     if (peer.stats.latencyMs == null) return false
     if (peer.source == PeerSource.Manual) return true
     val seen = peer.stats.lastSeenAtMs ?: return false

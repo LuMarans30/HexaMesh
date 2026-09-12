@@ -3,7 +3,9 @@ package com.lumarans30.hexamesh.node
 import android.content.Context
 import java.io.File
 
-class ModelRepository(context: Context) {
+class ModelRepository(
+    context: Context,
+) {
     private val app = context.applicationContext
     private val dir: File = File(app.getExternalFilesDir(null), "models").apply { mkdirs() }
     private val hfCache: File = File(app.getExternalFilesDir(null), "hf-cache").apply { mkdirs() }
@@ -13,7 +15,8 @@ class ModelRepository(context: Context) {
     fun hfCacheDir(): File = hfCache
 
     fun list(): List<Model> =
-        dir.listFiles()
+        dir
+            .listFiles()
             ?.asSequence()
             ?.filter { it.isFile && isLoadableModel(it.name) }
             ?.map { Model(path = it.absolutePath, name = it.name, sizeBytes = it.length()) }

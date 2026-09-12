@@ -6,7 +6,6 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class ModelListTest {
-
     @Test
     fun `plain gguf files are loadable`() {
         assertTrue(isLoadableModel("Qwen3.5-0.8B-Q8_0.gguf"))

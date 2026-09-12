@@ -1,12 +1,15 @@
 package com.lumarans30.hexamesh.node
 
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
 import java.io.File
 import java.io.IOException
 import java.io.InputStream
-import kotlinx.coroutines.currentCoroutineContext
-import kotlinx.coroutines.ensureActive
 
-data class ImportOutcome(val target: File, val warning: String? = null)
+data class ImportOutcome(
+    val target: File,
+    val warning: String? = null,
+)
 
 private const val BUFFER_SIZE = 64 * 1024
 private const val PROGRESS_STEP_BYTES = 2L * 1024 * 1024

@@ -9,7 +9,12 @@ fun parseDecodedTokens(slotsJson: String): Int? {
 }
 
 /** Rate from two `/slots` samples: null until a baseline exists, zero when idle. */
-fun tokensPerSecond(decoded: Int?, previousDecoded: Int?, previousAtMs: Long, nowMs: Long): Double? =
+fun tokensPerSecond(
+    decoded: Int?,
+    previousDecoded: Int?,
+    previousAtMs: Long,
+    nowMs: Long,
+): Double? =
     when {
         decoded == null -> 0.0
         previousDecoded == null || nowMs <= previousAtMs -> null

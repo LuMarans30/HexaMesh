@@ -19,8 +19,9 @@ fun isValidPort(value: Int): Boolean = value in MIN_SERVER_PORT..MAX_SERVER_PORT
  * reads go to the [SettingsStore] so separate instances agree, while the flow is
  * the per-instance UI copy.
  */
-class ServerSettings(private val store: SettingsStore) : NodeSettings {
-
+class ServerSettings(
+    private val store: SettingsStore,
+) : NodeSettings {
     private val _launchArgs =
         MutableStateFlow(store.getString(KEY_LAUNCH_ARGS, DEFAULT_LAUNCH_ARGS))
     val launchArgsFlow: StateFlow<String> = _launchArgs.asStateFlow()
@@ -62,13 +63,18 @@ class ServerSettings(private val store: SettingsStore) : NodeSettings {
 
             return ServerSettings(
                 object : SettingsStore {
-                    override fun getString(key: String, defaultValue: String): String =
-                        prefs.getString(key, defaultValue) ?: defaultValue
+                    override fun getString(
+                        key: String,
+                        defaultValue: String,
+                    ): String = prefs.getString(key, defaultValue) ?: defaultValue
 
-                    override fun putString(key: String, value: String) {
+                    override fun putString(
+                        key: String,
+                        value: String,
+                    ) {
                         prefs.edit().putString(key, value).apply()
                     }
-                }
+                },
             )
         }
     }

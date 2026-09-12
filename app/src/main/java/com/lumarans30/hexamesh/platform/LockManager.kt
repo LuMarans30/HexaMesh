@@ -7,7 +7,9 @@ import android.os.PowerManager
 /**
  * Keeps the CPU, Wi-Fi radio and multicast socket alive while the node serves.
  */
-class LockManager(context: Context) : Locks {
+class LockManager(
+    context: Context,
+) : Locks {
     private val app = context.applicationContext
 
     private var wakeLock: PowerManager.WakeLock? = null
@@ -27,7 +29,8 @@ class LockManager(context: Context) : Locks {
         val wm = app.getSystemService(Context.WIFI_SERVICE) as WifiManager
         if (wifiLock == null) {
             wifiLock =
-                wm.createWifiLock(WifiManager.WIFI_MODE_FULL_LOW_LATENCY, "hexamesh::wifi")
+                wm
+                    .createWifiLock(WifiManager.WIFI_MODE_FULL_LOW_LATENCY, "hexamesh::wifi")
                     .apply {
                         setReferenceCounted(false)
                         acquire()

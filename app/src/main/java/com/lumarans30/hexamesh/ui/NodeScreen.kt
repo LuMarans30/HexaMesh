@@ -61,8 +61,8 @@ import com.lumarans30.hexamesh.node.DownloadRequest
 import com.lumarans30.hexamesh.node.Model
 import com.lumarans30.hexamesh.node.NodeState
 import com.lumarans30.hexamesh.node.parseDownloadRequest
-import java.util.Locale
 import kotlinx.coroutines.launch
+import java.util.Locale
 
 /**
  * Manage tab: the model library, node status and transfer/diagnostics panels.
@@ -173,20 +173,22 @@ fun nodeScreen(
 
     state.importPrompt?.let { prompt ->
         when (prompt) {
-            is ImportPrompt.Choose ->
+            is ImportPrompt.Choose -> {
                 importChoiceDialog(
                     prompt = prompt,
                     onCopy = actions.onImportCopy,
                     onMove = actions.onImportMove,
                     onDismiss = actions.onImportCancel,
                 )
+            }
 
-            is ImportPrompt.Grant ->
+            is ImportPrompt.Grant -> {
                 grantAccessDialog(
                     name = prompt.name,
                     onOpenSettings = actions.onGrantAccess,
                     onDismiss = actions.onGrantDismiss,
                 )
+            }
         }
     }
 }
@@ -242,7 +244,11 @@ private fun transfersSection(
 }
 
 @Composable
-private fun transferCard(title: String, status: DownloadStatus, onCancel: () -> Unit) {
+private fun transferCard(
+    title: String,
+    status: DownloadStatus,
+    onCancel: () -> Unit,
+) {
     Surface(
         color = MaterialTheme.colorScheme.surfaceVariant,
         shape = MaterialTheme.shapes.medium,
@@ -280,7 +286,10 @@ private fun errorText(message: String) {
 }
 
 @Composable
-private fun diagnostics(exempt: Boolean, onFix: () -> Unit) {
+private fun diagnostics(
+    exempt: Boolean,
+    onFix: () -> Unit,
+) {
     if (!exempt) {
         batteryWarningCard(onFix = onFix)
     }
@@ -423,7 +432,8 @@ private fun modelRow(
     ) {
         Row(
             modifier =
-                Modifier.fillMaxWidth()
+                Modifier
+                    .fillMaxWidth()
                     .padding(start = 16.dp, top = 8.dp, end = 4.dp, bottom = 8.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
@@ -463,7 +473,11 @@ private fun modelRow(
 }
 
 @Composable
-private fun deleteDialog(model: Model, onConfirm: () -> Unit, onDismiss: () -> Unit) {
+private fun deleteDialog(
+    model: Model,
+    onConfirm: () -> Unit,
+    onDismiss: () -> Unit,
+) {
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text(stringResource(R.string.delete_model_title)) },
@@ -493,7 +507,7 @@ private fun importChoiceDialog(
                     "${prompt.name} · ${formatSize(prompt.sizeBytes)}"
                 } else {
                     prompt.name
-                }
+                },
             )
         },
         confirmButton = { TextButton(onClick = onMove) { Text("Move") } },
@@ -507,14 +521,18 @@ private fun importChoiceDialog(
 }
 
 @Composable
-private fun grantAccessDialog(name: String, onOpenSettings: () -> Unit, onDismiss: () -> Unit) {
+private fun grantAccessDialog(
+    name: String,
+    onOpenSettings: () -> Unit,
+    onDismiss: () -> Unit,
+) {
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text("Move needs \"All files access\"") },
         text = {
             Text(
                 "Android only lets apps delete files in shared storage with this permission, " +
-                        "which is what lets HexaMesh move $name instead of copying it."
+                    "which is what lets HexaMesh move $name instead of copying it.",
             )
         },
         confirmButton = { TextButton(onClick = onOpenSettings) { Text("Open settings") } },
@@ -523,46 +541,54 @@ private fun grantAccessDialog(name: String, onOpenSettings: () -> Unit, onDismis
 }
 
 @Composable
-private fun statusHero(state: NodeState, apiKey: String) {
+private fun statusHero(
+    state: NodeState,
+    apiKey: String,
+) {
     when (state) {
-        is NodeState.Running ->
+        is NodeState.Running -> {
             if (state.isWorker) {
                 workerCard(endpoint = state.endpoint)
             } else {
                 servingCard(serverUrl = state.endpoint, apiKey = apiKey)
             }
+        }
 
-        is NodeState.Stopped ->
+        is NodeState.Stopped -> {
             statusCard(
                 accent = MaterialTheme.colorScheme.onSurfaceVariant,
                 title = "Node stopped",
                 subtitle = "Tap Start Node to serve every model.",
                 symbol = "○",
             )
+        }
 
-        is NodeState.Starting ->
+        is NodeState.Starting -> {
             statusCard(
                 accent = MaterialTheme.colorScheme.primary,
                 title = "Starting llama-server",
                 subtitle = "Scanning the models folder…",
                 busy = true,
             )
+        }
 
-        is NodeState.Stopping ->
+        is NodeState.Stopping -> {
             statusCard(
                 accent = MaterialTheme.colorScheme.primary,
                 title = "Stopping llama-server",
                 subtitle = "Shutting down…",
                 busy = true,
             )
+        }
 
-        is NodeState.Error ->
+        is NodeState.Error -> {
             statusCard(
                 accent = MaterialTheme.colorScheme.error,
                 title = "Node failed",
                 subtitle = state.message,
                 symbol = "!",
             )
+        }
     }
 }
 
@@ -663,7 +689,10 @@ private fun workerCard(endpoint: String) {
 }
 
 @Composable
-private fun servingCard(serverUrl: String, apiKey: String) {
+private fun servingCard(
+    serverUrl: String,
+    apiKey: String,
+) {
     val accent = MaterialTheme.colorScheme.primary
 
     Surface(
@@ -718,7 +747,11 @@ private fun servingCard(serverUrl: String, apiKey: String) {
 }
 
 @Composable
-private fun connectionRow(label: String, value: String, accent: Color) {
+private fun connectionRow(
+    label: String,
+    value: String,
+    accent: Color,
+) {
     Column {
         Text(
             text = label,

@@ -5,7 +5,6 @@ import org.junit.Assert.assertNull
 import org.junit.Test
 
 class DownloadRequestTest {
-
     @Test
     fun `accepts a plain https gguf link`() {
         val request = parseDownloadRequest("https://example.com/models/tiny.gguf")
@@ -31,7 +30,7 @@ class DownloadRequestTest {
     fun `rewrites hugging face blob links to resolve`() {
         val request =
             parseDownloadRequest(
-                "https://huggingface.co/Qwen/Qwen2.5-0.5B-GGUF/blob/main/qwen-q8_0.gguf"
+                "https://huggingface.co/Qwen/Qwen2.5-0.5B-GGUF/blob/main/qwen-q8_0.gguf",
             )
 
         assertEquals(

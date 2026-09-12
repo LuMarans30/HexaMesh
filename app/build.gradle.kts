@@ -62,69 +62,82 @@ dependencies {
     testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.11.0")
 }
 
-val copyLlamaServer = tasks.register<Copy>("copyLlamaServer") {
-    from(llamaCppPkg.file("bin/llama-server"))
-    rename { "libllamaserver.so" }
-    into(arm64StagingDir)
-}
+val copyLlamaServer =
+    tasks.register<Copy>("copyLlamaServer") {
+        from(llamaCppPkg.file("bin/llama-server"))
+        rename { "libllamaserver.so" }
+        into(arm64StagingDir)
+    }
 
 // The RPC backend lets a phone expose its devices to a coordinator over
 // llama.cpp's mesh. It has no .so suffix upstream, but every native executable
 // must live in jniLibs to be packaged and extracted with the exec bit.
-val copyRpcServer = tasks.register<Copy>("copyRpcServer") {
-    from(llamaCppPkg.file("bin/ggml-rpc-server"))
-    rename { "libggmlrpcserver.so" }
-    into(arm64StagingDir)
-}
-
-val copyLlamaLibs = tasks.register<Copy>("copyLlamaLibs") {
-    from(llamaCppPkg.dir("lib")) {
-        include("*.so")
+val copyRpcServer =
+    tasks.register<Copy>("copyRpcServer") {
+        from(llamaCppPkg.file("bin/ggml-rpc-server"))
+        rename { "libggmlrpcserver.so" }
+        into(arm64StagingDir)
     }
-    into(arm64StagingDir)
-}
 
-val cargoUpdate = if (rustCoreDir.asFile.exists() && updateRustDeps) {
-    tasks.register<Exec>("cargoUpdate") {
-        group = "rust"
-        description = "Runs `cargo update` in hexa_mesh_core"
-
-        workingDir = rustCoreDir.asFile
-        commandLine("cargo", "update")
-
-        outputs.upToDateWhen { false }
-    }
-} else null
-
-val buildRustCore = if (rustCoreDir.asFile.exists() && !skipRust) {
-    tasks.register<Exec>("buildRustCore") {
-        group = "build"
-        description = "Builds the Rust core for aarch64-linux-android"
-        workingDir = rustCoreDir.asFile
-
-        if (cargoUpdate != null) {
-            dependsOn(cargoUpdate)
+val copyLlamaLibs =
+    tasks.register<Copy>("copyLlamaLibs") {
+        from(llamaCppPkg.dir("lib")) {
+            include("*.so")
         }
+        into(arm64StagingDir)
+    }
 
-        inputs.files(
-            fileTree(rustCoreDir) {
-                include("Cargo.toml", "Cargo.lock", "build.rs", "src/**/*.rs")
+val cargoUpdate =
+    if (rustCoreDir.asFile.exists() && updateRustDeps) {
+        tasks.register<Exec>("cargoUpdate") {
+            group = "rust"
+            description = "Runs `cargo update` in hexa_mesh_core"
+
+            workingDir = rustCoreDir.asFile
+            commandLine("cargo", "update")
+
+            outputs.upToDateWhen { false }
+        }
+    } else {
+        null
+    }
+
+val buildRustCore =
+    if (rustCoreDir.asFile.exists() && !skipRust) {
+        tasks.register<Exec>("buildRustCore") {
+            group = "build"
+            description = "Builds the Rust core for aarch64-linux-android"
+            workingDir = rustCoreDir.asFile
+
+            if (cargoUpdate != null) {
+                dependsOn(cargoUpdate)
             }
-        )
-        outputs.file(arm64StagingDir.map { it.file("libhexa_mesh_core.so") })
 
-        commandLine(
-            "cargo", "ndk",
-            "-t", "arm64-v8a",
-            "-o", nativeStagingDir.get().asFile.absolutePath,
-            "build", "--release"
-        )
+            inputs.files(
+                fileTree(rustCoreDir) {
+                    include("Cargo.toml", "Cargo.lock", "build.rs", "src/**/*.rs")
+                },
+            )
+            outputs.file(arm64StagingDir.map { it.file("libhexa_mesh_core.so") })
 
-        providers.environmentVariable("ANDROID_NDK_HOME").orNull?.let { ndk ->
-            environment("ANDROID_NDK_HOME", ndk)
+            commandLine(
+                "cargo",
+                "ndk",
+                "-t",
+                "arm64-v8a",
+                "-o",
+                nativeStagingDir.get().asFile.absolutePath,
+                "build",
+                "--release",
+            )
+
+            providers.environmentVariable("ANDROID_NDK_HOME").orNull?.let { ndk ->
+                environment("ANDROID_NDK_HOME", ndk)
+            }
         }
+    } else {
+        null
     }
-} else null
 
 tasks.named("preBuild") {
     dependsOn(copyLlamaServer, copyRpcServer, copyLlamaLibs)

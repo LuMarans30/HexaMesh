@@ -9,16 +9,17 @@ import kotlinx.coroutines.flow.asStateFlow
  * Persisted mesh settings. Reads go to the [SettingsStore] so separate instances
  * agree; the flows are the per-instance UI copy.
  */
-class MeshSettings(private val store: SettingsStore) {
-
+class MeshSettings(
+    private val store: SettingsStore,
+) {
     private val _fallbackPeers = MutableStateFlow(store.getString(KEY_FALLBACK_PEERS, ""))
-    val fallbackPeersFlow: StateFlow<String> = _fallbackPeers.asStateFlow()
+    val fallbackPeers: StateFlow<String> = _fallbackPeers.asStateFlow()
 
     private val _discoverable = MutableStateFlow(isDiscoverable())
-    val discoverableFlow: StateFlow<Boolean> = _discoverable.asStateFlow()
+    val discoverable: StateFlow<Boolean> = _discoverable.asStateFlow()
 
     private val _usePeers = MutableStateFlow(isUsePeers())
-    val usePeersFlow: StateFlow<Boolean> = _usePeers.asStateFlow()
+    val usePeers: StateFlow<Boolean> = _usePeers.asStateFlow()
 
     fun setFallbackPeers(text: String) {
         if (text == store.getString(KEY_FALLBACK_PEERS, "")) return
@@ -58,13 +59,18 @@ class MeshSettings(private val store: SettingsStore) {
 
             return MeshSettings(
                 object : SettingsStore {
-                    override fun getString(key: String, defaultValue: String): String =
-                        prefs.getString(key, defaultValue) ?: defaultValue
+                    override fun getString(
+                        key: String,
+                        defaultValue: String,
+                    ): String = prefs.getString(key, defaultValue) ?: defaultValue
 
-                    override fun putString(key: String, value: String) {
+                    override fun putString(
+                        key: String,
+                        value: String,
+                    ) {
                         prefs.edit().putString(key, value).apply()
                     }
-                }
+                },
             )
         }
     }

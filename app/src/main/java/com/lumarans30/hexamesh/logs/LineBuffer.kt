@@ -5,7 +5,9 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 
 /** Rolling view of the most recent [capacity] log lines for the terminal view. */
-class LineBuffer(private val capacity: Int = DEFAULT_CAPACITY) {
+class LineBuffer(
+    private val capacity: Int = DEFAULT_CAPACITY,
+) {
     private val buffer = ArrayDeque<String>()
 
     private val _lines = MutableStateFlow<List<String>>(emptyList())

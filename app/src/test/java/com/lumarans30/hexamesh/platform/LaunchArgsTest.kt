@@ -5,7 +5,6 @@ import org.junit.Assert.assertNull
 import org.junit.Test
 
 class LaunchArgsTest {
-
     @Test
     fun `splits on any whitespace and drops blanks`() {
         assertEquals(listOf("-fa", "on", "-t", "6"), parseLaunchArgs("  -fa on\n-t\t6  "))

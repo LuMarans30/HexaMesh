@@ -19,17 +19,16 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import com.lumarans30.hexamesh.platform.AllFilesAccess
-import com.lumarans30.hexamesh.ui.hexaMeshApp
 import com.lumarans30.hexamesh.ui.LogsViewModel
 import com.lumarans30.hexamesh.ui.MeshViewModel
 import com.lumarans30.hexamesh.ui.NodeViewModel
 import com.lumarans30.hexamesh.ui.SettingsViewModel
 import com.lumarans30.hexamesh.ui.TransferViewModel
+import com.lumarans30.hexamesh.ui.hexaMeshApp
 import com.lumarans30.hexamesh.ui.hexaMeshTheme
 
 /** Thin control panel for the headless node. */
 class MainActivity : ComponentActivity() {
-
     private val nodeViewModel: NodeViewModel by viewModels()
     private val transferViewModel: TransferViewModel by viewModels()
     private val settingsViewModel: SettingsViewModel by viewModels()
@@ -137,7 +136,7 @@ class MainActivity : ComponentActivity() {
                 Intent(
                     Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS,
                     Uri.parse("package:$packageName"),
-                )
+                ),
             )
         } catch (_: Exception) {
             // Some OEM builds remove this settings screen.

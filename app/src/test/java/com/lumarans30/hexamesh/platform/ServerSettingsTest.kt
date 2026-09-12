@@ -7,7 +7,6 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class ServerSettingsTest {
-
     @Test
     fun `the user range is valid`() {
         assertTrue(isValidPort(MIN_SERVER_PORT))
@@ -87,9 +86,15 @@ class ServerSettingsTest {
     private class FakeStore(
         val strings: MutableMap<String, String> = mutableMapOf(),
     ) : SettingsStore {
-        override fun getString(key: String, defaultValue: String): String = strings[key] ?: defaultValue
+        override fun getString(
+            key: String,
+            defaultValue: String,
+        ): String = strings[key] ?: defaultValue
 
-        override fun putString(key: String, value: String) {
+        override fun putString(
+            key: String,
+            value: String,
+        ) {
             strings[key] = value
         }
     }

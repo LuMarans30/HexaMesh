@@ -13,11 +13,9 @@ val LOCKED_LAUNCH_FLAGS =
 /** Editable defaults. `-ngl` assumes the GPU backend. */
 const val DEFAULT_LAUNCH_ARGS = "--port 8080 --slots -fa on -t 6 -ub 16 --no-warmup -ngl 99"
 
-fun parseLaunchArgs(text: String): List<String> =
-    text.split(' ', '\t', '\n', '\r').filter { it.isNotBlank() }
+fun parseLaunchArgs(text: String): List<String> = text.split(' ', '\t', '\n', '\r').filter { it.isNotBlank() }
 
-fun lockedLaunchFlags(args: List<String>): List<String> =
-    args.filter { it.substringBefore('=') in LOCKED_LAUNCH_FLAGS }
+fun lockedLaunchFlags(args: List<String>): List<String> = args.filter { it.substringBefore('=') in LOCKED_LAUNCH_FLAGS }
 
 /** User args with app-owned flags and their values removed. */
 fun effectiveLaunchArgs(text: String): List<String> {
@@ -49,7 +47,11 @@ fun parseLaunchPort(args: List<String>): Int? {
                 token.startsWith("--port=") -> token.substringAfter('=')
                 else -> null
             }
-        value?.trim()?.toIntOrNull()?.takeIf(::isValidPort)?.let { port = it }
+        value
+            ?.trim()
+            ?.toIntOrNull()
+            ?.takeIf(::isValidPort)
+            ?.let { port = it }
         i++
     }
     return port
@@ -71,7 +73,10 @@ internal fun servedModelLabel(args: List<String>): String? {
 }
 
 /** Value of [flag] as `flag value` or `flag=value`; null when absent. */
-private fun flagValue(args: List<String>, flag: String): String? {
+private fun flagValue(
+    args: List<String>,
+    flag: String,
+): String? {
     args.forEachIndexed { i, token ->
         when {
             token == flag -> return args.getOrNull(i + 1)

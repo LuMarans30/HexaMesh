@@ -30,7 +30,8 @@ fun discoveredPeer(
  * defaults to [DEFAULT_RPC_PORT]; malformed entries are dropped.
  */
 fun parseFallbackPeers(text: String): List<PeerNode> =
-    text.lineSequence()
+    text
+        .lineSequence()
         .map { it.substringBefore('#').trim() }
         .filter { it.isNotEmpty() }
         .mapNotNull(::parseFallbackPeer)
@@ -66,22 +67,30 @@ internal fun splitHostPort(entry: String): Pair<String, String?>? =
             }
         }
 
-        entry.count { it == ':' } == 1 -> entry.substringBefore(':') to entry.substringAfter(':')
+        entry.count { it == ':' } == 1 -> {
+            entry.substringBefore(':') to entry.substringAfter(':')
+        }
 
         // A bare IPv6 address is ambiguous; require the bracketed form.
-        ':' in entry -> null
+        ':' in entry -> {
+            null
+        }
 
-        else -> entry to null
+        else -> {
+            entry to null
+        }
     }
 
-private fun Map<String, ByteArray>.longValue(key: String): Long? =
-    this[key]?.toString(Charsets.UTF_8)?.trim()?.toLongOrNull()
+private fun Map<String, ByteArray>.longValue(key: String): Long? = this[key]?.toString(Charsets.UTF_8)?.trim()?.toLongOrNull()
 
 /**
  * TXT attributes advertising spare RAM. Unknown readings become 0 so the record
  * always has at least one attribute (an empty TXT record trips the NSD service).
  */
-fun memoryAttributes(freeBytes: Long?, totalBytes: Long?): Map<String, ByteArray> =
+fun memoryAttributes(
+    freeBytes: Long?,
+    totalBytes: Long?,
+): Map<String, ByteArray> =
     mapOf(
         PeerTxt.FREE_MEMORY to (freeBytes ?: 0L).toString().toByteArray(),
         PeerTxt.TOTAL_MEMORY to (totalBytes ?: 0L).toString().toByteArray(),

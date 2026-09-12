@@ -14,10 +14,9 @@ import com.lumarans30.hexamesh.logs.readMemoryInfo
 import com.lumarans30.hexamesh.logs.tokensPerSecond
 import com.lumarans30.hexamesh.platform.ApiKeyManager
 import com.lumarans30.hexamesh.platform.ServerSettings
-import java.io.File
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -26,10 +25,12 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import java.io.File
 
 /** Streams the log file and the node diagnostics while the Logs tab is visible. */
-class LogsViewModel(application: Application) : AndroidViewModel(application) {
-
+class LogsViewModel(
+    application: Application,
+) : AndroidViewModel(application) {
     private val buffer = LineBuffer()
 
     val lines: StateFlow<List<String>> = buffer.lines
@@ -41,10 +42,11 @@ class LogsViewModel(application: Application) : AndroidViewModel(application) {
     private val _metrics = MutableStateFlow(NodeMetrics())
     val metrics: StateFlow<NodeMetrics> = _metrics.asStateFlow()
 
-    suspend fun observe() = coroutineScope {
-        launch { tail() }
-        launch { pollSystem() }
-    }
+    suspend fun observe() =
+        coroutineScope {
+            launch { tail() }
+            launch { pollSystem() }
+        }
 
     private suspend fun tail() {
         buffer.clear()

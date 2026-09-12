@@ -25,7 +25,6 @@ import kotlinx.coroutines.launch
 
 /** Persistent foreground service that hosts the HexaMesh node. */
 class MeshService : Service() {
-
     companion object {
         private const val TAG = "MeshService"
         const val EXTRA_RPC_SERVERS = "com.lumarans30.hexamesh.extra.RPC_SERVERS"
@@ -55,19 +54,20 @@ class MeshService : Service() {
         notifications = Notifications(this)
         models = ModelRepository(this)
         settings = ServerSettings.from(this)
-        node = NodeController(
-            NodeEnvironment(
-                nativeLibDir = applicationInfo.nativeLibraryDir,
-                cacheDir = cacheDir.absolutePath,
-                llamaCacheDir = models.hfCacheDir().absolutePath,
-                modelsDir = models.modelsDir().absolutePath,
-                apiKey = ApiKeyManager.getOrCreateApiKey(this),
-                serverDiedMessage = getString(R.string.state_server_died),
-                locks = LockManager(this),
-                settings = settings,
-            ),
-            RustEngine(),
-        )
+        node =
+            NodeController(
+                NodeEnvironment(
+                    nativeLibDir = applicationInfo.nativeLibraryDir,
+                    cacheDir = cacheDir.absolutePath,
+                    llamaCacheDir = models.hfCacheDir().absolutePath,
+                    modelsDir = models.modelsDir().absolutePath,
+                    apiKey = ApiKeyManager.getOrCreateApiKey(this),
+                    serverDiedMessage = getString(R.string.state_server_died),
+                    locks = LockManager(this),
+                    settings = settings,
+                ),
+                RustEngine(),
+            )
 
         notifications.createChannel()
 
@@ -76,14 +76,21 @@ class MeshService : Service() {
                 val settled =
                     state is NodeState.Stopped || state is NodeState.Error
                 if (foregroundActive) {
-                    if (settled) hideForeground(stopSelf = true)
-                    else notifications.update(state, modelLabel())
+                    if (settled) {
+                        hideForeground(stopSelf = true)
+                    } else {
+                        notifications.update(state, modelLabel())
+                    }
                 }
             }
         }
     }
 
-    override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+    override fun onStartCommand(
+        intent: Intent?,
+        flags: Int,
+        startId: Int,
+    ): Int {
         if (intent?.action == ACTION_STOP) {
             Log.i(TAG, "Stop requested.")
             node.stop()

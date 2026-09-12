@@ -6,7 +6,6 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class NodeControlsTest {
-
     @Test
     fun `controls are enabled when the node is settled`() {
         assertTrue(controlsEnabled(NodeState.Stopped))

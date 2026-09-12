@@ -5,7 +5,6 @@ import org.junit.Assert.assertNull
 import org.junit.Test
 
 class SlotsTest {
-
     @Test
     fun `sums decoded tokens across processing slots`() {
         val json =

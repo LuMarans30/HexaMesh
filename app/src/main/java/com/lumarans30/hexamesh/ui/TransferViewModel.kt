@@ -22,7 +22,6 @@ import com.lumarans30.hexamesh.platform.ServerSettings
 import com.lumarans30.hexamesh.platform.displayName
 import com.lumarans30.hexamesh.platform.documentSize
 import com.lumarans30.hexamesh.platform.realPath
-import java.io.File
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -30,6 +29,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import java.io.File
 
 /** Model library plus the download/import transfers that feed it. */
 data class TransferUiState(
@@ -43,8 +43,9 @@ data class TransferUiState(
 )
 
 /** Owns the model library and the download/import flows. */
-class TransferViewModel(application: Application) : AndroidViewModel(application) {
-
+class TransferViewModel(
+    application: Application,
+) : AndroidViewModel(application) {
     private val context = application.applicationContext
     private val repository = ModelRepository(context)
     private val workManager = WorkManager.getInstance(context)
@@ -121,9 +122,8 @@ class TransferViewModel(application: Application) : AndroidViewModel(application
                     workDataOf(
                         ModelDownloadWorker.KEY_URL to request.url,
                         ModelDownloadWorker.KEY_FILE_NAME to request.fileName,
-                    )
-                )
-                .build()
+                    ),
+                ).build()
 
         workManager.enqueueUniqueWork(ModelDownloadWorker.WORK_NAME, ExistingWorkPolicy.KEEP, work)
     }
@@ -174,9 +174,8 @@ class TransferViewModel(application: Application) : AndroidViewModel(application
                         ModelImportWorker.KEY_FILE_NAME to candidate.name,
                         ModelImportWorker.KEY_MOVE to move,
                         ModelImportWorker.KEY_TOTAL to candidate.sizeBytes,
-                    )
-                )
-                .build()
+                    ),
+                ).build()
 
         workManager.enqueueUniqueWork(ModelImportWorker.WORK_NAME, ExistingWorkPolicy.KEEP, work)
         importPrompt.value = null
@@ -197,8 +196,7 @@ class TransferViewModel(application: Application) : AndroidViewModel(application
         importCandidate = null
     }
 
-    private fun canMove(candidate: ImportCandidate): Boolean =
-        candidate.path != null && AllFilesAccess.isGranted()
+    private fun canMove(candidate: ImportCandidate): Boolean = candidate.path != null && AllFilesAccess.isGranted()
 
     /** A change on disk: refresh the app's list and, if serving, the router's too. */
     private fun onModelsChanged() {

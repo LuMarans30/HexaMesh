@@ -12,17 +12,18 @@ import androidx.work.ForegroundInfo
 import androidx.work.WorkerParameters
 import androidx.work.workDataOf
 import com.lumarans30.hexamesh.R
+import kotlinx.coroutines.CancellationException
 import java.io.File
 import java.io.IOException
-import kotlinx.coroutines.CancellationException
 
 /**
  * Imports a picked `.gguf` into the models directory: a rename when possible,
  * otherwise a streamed copy (which works without all-files access).
  */
-class ModelImportWorker(appContext: Context, params: WorkerParameters) :
-    CoroutineWorker(appContext, params) {
-
+class ModelImportWorker(
+    appContext: Context,
+    params: WorkerParameters,
+) : CoroutineWorker(appContext, params) {
     override suspend fun doWork(): Result {
         val fileName = inputData.getString(KEY_FILE_NAME) ?: "model.gguf"
         val move = inputData.getBoolean(KEY_MOVE, false)
@@ -40,7 +41,7 @@ class ModelImportWorker(appContext: Context, params: WorkerParameters) :
                 if (move) {
                     val path =
                         sourcePath ?: return Result.failure(
-                            workDataOf(KEY_ERROR to "No source path was provided.")
+                            workDataOf(KEY_ERROR to "No source path was provided."),
                         )
                     importModel(File(path), modelsDir, move = true) { copied, size ->
                         report(fileName, copied, size)
@@ -49,7 +50,7 @@ class ModelImportWorker(appContext: Context, params: WorkerParameters) :
                     val uri =
                         uriString?.let(Uri::parse)
                             ?: return Result.failure(
-                                workDataOf(KEY_ERROR to "No source file was provided.")
+                                workDataOf(KEY_ERROR to "No source file was provided."),
                             )
                     importFromStream(fileName, total, modelsDir, onProgress = { copied, size ->
                         report(fileName, copied, size)
@@ -64,7 +65,7 @@ class ModelImportWorker(appContext: Context, params: WorkerParameters) :
                     KEY_FILE_NAME to outcome.target.name,
                     KEY_PATH to outcome.target.absolutePath,
                     KEY_WARNING to (outcome.warning ?: ""),
-                )
+                ),
             )
         } catch (cancellation: CancellationException) {
             throw cancellation
@@ -81,7 +82,11 @@ class ModelImportWorker(appContext: Context, params: WorkerParameters) :
         }
     }
 
-    private suspend fun report(fileName: String, copied: Long, total: Long) {
+    private suspend fun report(
+        fileName: String,
+        copied: Long,
+        total: Long,
+    ) {
         val percent = if (total > 0) ((copied * 100) / total).toInt() else -1
         setProgress(
             workDataOf(
@@ -89,15 +94,19 @@ class ModelImportWorker(appContext: Context, params: WorkerParameters) :
                 KEY_DOWNLOADED to copied,
                 KEY_TOTAL to total,
                 KEY_PROGRESS to percent,
-            )
+            ),
         )
         runCatching { setForeground(foregroundInfo(fileName, percent.takeIf { it >= 0 })) }
     }
 
-    private fun foregroundInfo(fileName: String, percent: Int?): ForegroundInfo {
+    private fun foregroundInfo(
+        fileName: String,
+        percent: Int?,
+    ): ForegroundInfo {
         ensureChannel()
         val notification =
-            Notification.Builder(applicationContext, CHANNEL_ID)
+            Notification
+                .Builder(applicationContext, CHANNEL_ID)
                 .setSmallIcon(R.drawable.ic_stat_hexagon)
                 .setContentTitle("Importing model")
                 .setContentText(fileName)
@@ -116,7 +125,7 @@ class ModelImportWorker(appContext: Context, params: WorkerParameters) :
     private fun ensureChannel() {
         val manager = applicationContext.getSystemService(NotificationManager::class.java) ?: return
         manager.createNotificationChannel(
-            NotificationChannel(CHANNEL_ID, "Model imports", NotificationManager.IMPORTANCE_LOW)
+            NotificationChannel(CHANNEL_ID, "Model imports", NotificationManager.IMPORTANCE_LOW),
         )
     }
 

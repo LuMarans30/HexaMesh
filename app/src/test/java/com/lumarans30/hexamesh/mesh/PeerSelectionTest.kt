@@ -14,22 +14,20 @@ private fun peer(
     latencyMs: Long? = 10L,
     seenAgoMs: Long = 0L,
     port: Int = 50052,
-) =
-    PeerNode(
-        id = id,
-        name = id,
-        host = "$id.local",
-        port = port,
-        stats =
-            PeerStats(
-                freeMemoryBytes = freeGb?.times(GB),
-                latencyMs = latencyMs,
-                lastSeenAtMs = NOW - seenAgoMs,
-            ),
-    )
+) = PeerNode(
+    id = id,
+    name = id,
+    host = "$id.local",
+    port = port,
+    stats =
+        PeerStats(
+            freeMemoryBytes = freeGb?.times(GB),
+            latencyMs = latencyMs,
+            lastSeenAtMs = NOW - seenAgoMs,
+        ),
+)
 
 class PeerSelectionTest {
-
     @Test
     fun `ranking prefers memory then latency then id`() {
         val ranked =
@@ -38,7 +36,7 @@ class PeerSelectionTest {
                     peer("slow", freeGb = 8, latencyMs = 40),
                     peer("fast", freeGb = 8, latencyMs = 5),
                     peer("rich", freeGb = 16, latencyMs = 80),
-                )
+                ),
             )
 
         assertEquals(listOf("rich", "fast", "slow"), ranked.map { it.id })

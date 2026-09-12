@@ -11,8 +11,9 @@ import com.lumarans30.hexamesh.MeshService
 import com.lumarans30.hexamesh.R
 import com.lumarans30.hexamesh.node.NodeState
 
-class Notifications(context: Context) {
-
+class Notifications(
+    context: Context,
+) {
     private val app = context.applicationContext
     private val manager = app.getSystemService(NotificationManager::class.java)
 
@@ -30,7 +31,10 @@ class Notifications(context: Context) {
         manager.createNotificationChannel(channel)
     }
 
-    fun build(state: NodeState, modelLabel: String?): Notification {
+    fun build(
+        state: NodeState,
+        modelLabel: String?,
+    ): Notification {
         val openIntent =
             PendingIntent.getActivity(
                 app,
@@ -48,19 +52,20 @@ class Notifications(context: Context) {
             )
 
         val builder =
-            Notification.Builder(app, CHANNEL_ID)
+            Notification
+                .Builder(app, CHANNEL_ID)
                 .setSmallIcon(R.drawable.ic_stat_hexagon)
                 .setContentTitle(app.getString(R.string.app_name))
                 .setContentText(contentText(state, modelLabel))
                 .setContentIntent(openIntent)
                 .addAction(
-                    Notification.Action.Builder(
-                        null as android.graphics.drawable.Icon?,
-                        app.getString(R.string.stop_node),
-                        stopIntent,
-                    ).build()
-                )
-                .setOngoing(true)
+                    Notification.Action
+                        .Builder(
+                            null as android.graphics.drawable.Icon?,
+                            app.getString(R.string.stop_node),
+                            stopIntent,
+                        ).build(),
+                ).setOngoing(true)
 
         if (state is NodeState.Running) builder.setSubText(state.endpoint)
         if (state is NodeState.Starting || state is NodeState.Stopping) {
@@ -70,18 +75,26 @@ class Notifications(context: Context) {
         return builder.build()
     }
 
-    fun update(state: NodeState, modelLabel: String?) {
+    fun update(
+        state: NodeState,
+        modelLabel: String?,
+    ) {
         manager.notify(NOTIFICATION_ID, build(state, modelLabel))
     }
 
-    private fun contentText(state: NodeState, modelLabel: String?): String =
+    private fun contentText(
+        state: NodeState,
+        modelLabel: String?,
+    ): String =
         when (state) {
-            is NodeState.Starting ->
+            is NodeState.Starting -> {
                 app.getString(
                     R.string.notif_starting,
                     modelLabel ?: app.getString(R.string.notif_server),
                 )
-            is NodeState.Running ->
+            }
+
+            is NodeState.Running -> {
                 if (state.isWorker) {
                     app.getString(R.string.notif_worker_running)
                 } else {
@@ -90,13 +103,22 @@ class Notifications(context: Context) {
                         modelLabel ?: app.getString(R.string.notif_all_models),
                     )
                 }
-            is NodeState.Stopping ->
+            }
+
+            is NodeState.Stopping -> {
                 app.getString(
                     R.string.notif_stopping,
                     modelLabel ?: app.getString(R.string.notif_server),
                 )
-            is NodeState.Error -> app.getString(R.string.notif_error, state.message)
-            is NodeState.Stopped -> app.getString(R.string.notif_stopped)
+            }
+
+            is NodeState.Error -> {
+                app.getString(R.string.notif_error, state.message)
+            }
+
+            is NodeState.Stopped -> {
+                app.getString(R.string.notif_stopped)
+            }
         }
 
     companion object {

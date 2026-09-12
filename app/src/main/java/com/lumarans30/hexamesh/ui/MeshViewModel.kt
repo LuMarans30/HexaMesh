@@ -34,8 +34,9 @@ import kotlinx.coroutines.withContext
 import kotlin.time.Duration.Companion.milliseconds
 
 /** Discovers mesh peers on the LAN, pings them, and merges the fallback list. */
-class MeshViewModel(application: Application) : AndroidViewModel(application) {
-
+class MeshViewModel(
+    application: Application,
+) : AndroidViewModel(application) {
     private val discovery = NsdDiscovery(application)
     private val advertiser = NsdAdvertiser(application)
     private val settings = MeshSettings.from(application)
@@ -51,11 +52,11 @@ class MeshViewModel(application: Application) : AndroidViewModel(application) {
     private val _peers = MutableStateFlow<List<PeerNode>>(emptyList())
     val peers: StateFlow<List<PeerNode>> = _peers.asStateFlow()
 
-    val fallbackPeers: StateFlow<String> = settings.fallbackPeersFlow
+    val fallbackPeers: StateFlow<String> = settings.fallbackPeers
 
-    val discoverable: StateFlow<Boolean> = settings.discoverableFlow
+    val discoverable: StateFlow<Boolean> = settings.discoverable
 
-    val usePeers: StateFlow<Boolean> = settings.usePeersFlow
+    val usePeers: StateFlow<Boolean> = settings.usePeers
 
     private val _worker = MutableStateFlow(serverSettings.role == ServerRole.RPC)
     val worker: StateFlow<Boolean> = _worker.asStateFlow()
@@ -87,55 +88,53 @@ class MeshViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     /** Browses, advertises and pings while the Mesh tab is composed. */
-    suspend fun observe() = coroutineScope {
-        launch {
-            combine(discovery.discover(), fallbackPeers, selfName) { discovered, fallback, self ->
-                withoutSelf(mergePeers(discovered, parseFallbackPeers(fallback)), self)
+    suspend fun observe() =
+        coroutineScope {
+            launch {
+                combine(discovery.discover(), fallbackPeers, selfName) { discovered, fallback, self ->
+                    withoutSelf(mergePeers(discovered, parseFallbackPeers(fallback)), self)
+                }.collect { merged.value = it }
             }
-                .collect { merged.value = it }
-        }
 
-        launch {
-            combine(merged, latencies) { list, measured ->
-                list.map { peer ->
-                    peer.copy(stats = peer.stats.copy(latencyMs = measured[peer.endpoint]))
-                }
+            launch {
+                combine(merged, latencies) { list, measured ->
+                    list.map { peer ->
+                        peer.copy(stats = peer.stats.copy(latencyMs = measured[peer.endpoint]))
+                    }
+                }.collect { _peers.value = it }
             }
-                .collect { _peers.value = it }
-        }
 
-        launch {
-            while (isActive) {
-                val targets = merged.value
-                if (targets.isNotEmpty()) {
-                    latencies.value =
-                        withContext(Dispatchers.IO) {
-                            targets.associate {
-                                it.endpoint to tcpLatencyMs(it.host, it.port)
+            launch {
+                while (isActive) {
+                    val targets = merged.value
+                    if (targets.isNotEmpty()) {
+                        latencies.value =
+                            withContext(Dispatchers.IO) {
+                                targets.associate {
+                                    it.endpoint to tcpLatencyMs(it.host, it.port)
+                                }
                             }
-                        }
+                    }
+                    delay(PING_INTERVAL_MS.milliseconds)
                 }
-                delay(PING_INTERVAL_MS.milliseconds)
             }
-        }
 
-        launch {
-            discoverable.collectLatest { on ->
-                if (on) {
-                    val memory = withContext(Dispatchers.IO) { readMemoryInfo() }
-                    advertiser
-                        .advertise(
-                            name = meshServiceName(Build.MODEL),
-                            port = DEFAULT_RPC_PORT,
-                            attributes = memoryAttributes(memory?.availableBytes, memory?.totalBytes),
-                        )
-                        .collect { selfName.value = it }
-                } else {
-                    selfName.value = null
+            launch {
+                discoverable.collectLatest { on ->
+                    if (on) {
+                        val memory = withContext(Dispatchers.IO) { readMemoryInfo() }
+                        advertiser
+                            .advertise(
+                                name = meshServiceName(Build.MODEL),
+                                port = DEFAULT_RPC_PORT,
+                                attributes = memoryAttributes(memory?.availableBytes, memory?.totalBytes),
+                            ).collect { selfName.value = it }
+                    } else {
+                        selfName.value = null
+                    }
                 }
             }
         }
-    }
 
     private companion object {
         const val PING_INTERVAL_MS = 5_000L

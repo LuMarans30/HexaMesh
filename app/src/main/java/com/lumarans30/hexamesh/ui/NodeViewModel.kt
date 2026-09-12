@@ -20,8 +20,9 @@ import kotlinx.coroutines.launch
 /**
  * Owns the node lifecycle the UI observes.
  */
-class NodeViewModel(application: Application) : AndroidViewModel(application) {
-
+class NodeViewModel(
+    application: Application,
+) : AndroidViewModel(application) {
     private val context: Context = application.applicationContext
 
     private val _state = MutableStateFlow<NodeState>(NodeState.Stopped)
@@ -34,7 +35,10 @@ class NodeViewModel(application: Application) : AndroidViewModel(application) {
 
     private val connection =
         object : ServiceConnection {
-            override fun onServiceConnected(name: ComponentName?, service: IBinder?) {
+            override fun onServiceConnected(
+                name: ComponentName?,
+                service: IBinder?,
+            ) {
                 val binder = service as? MeshService.LocalBinder ?: return
                 stateJob?.cancel()
                 stateJob =
@@ -71,7 +75,7 @@ class NodeViewModel(application: Application) : AndroidViewModel(application) {
 
     fun stop() {
         context.startService(
-            Intent(context, MeshService::class.java).apply { action = MeshService.ACTION_STOP }
+            Intent(context, MeshService::class.java).apply { action = MeshService.ACTION_STOP },
         )
     }
 

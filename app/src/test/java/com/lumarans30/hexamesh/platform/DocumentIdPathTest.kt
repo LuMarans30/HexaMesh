@@ -5,7 +5,6 @@ import org.junit.Assert.assertNull
 import org.junit.Test
 
 class DocumentIdPathTest {
-
     private val external = "com.android.externalstorage.documents"
 
     @Test

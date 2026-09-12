@@ -3,7 +3,10 @@ package com.lumarans30.hexamesh.node
 import java.net.URI
 import java.net.URLDecoder
 
-data class DownloadRequest(val url: String, val fileName: String)
+data class DownloadRequest(
+    val url: String,
+    val fileName: String,
+)
 
 private const val EXTENSION = ".gguf"
 
@@ -25,5 +28,4 @@ internal fun parseDownloadRequest(input: String): DownloadRequest? {
     return DownloadRequest(url = url, fileName = fileName)
 }
 
-private fun urlDecode(value: String): String =
-    runCatching { URLDecoder.decode(value, Charsets.UTF_8.name()) }.getOrDefault(value)
+private fun urlDecode(value: String): String = runCatching { URLDecoder.decode(value, Charsets.UTF_8.name()) }.getOrDefault(value)

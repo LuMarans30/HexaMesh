@@ -5,7 +5,6 @@ import org.junit.Assert.assertNull
 import org.junit.Test
 
 class MemoryTest {
-
     @Test
     fun `parses available and total in bytes`() {
         val meminfo =

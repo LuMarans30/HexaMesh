@@ -4,7 +4,6 @@ import org.junit.Assert.assertEquals
 import org.junit.Test
 
 class FormatSizeTest {
-
     @Test
     fun `zero bytes`() {
         assertEquals("0 B", formatSize(0))

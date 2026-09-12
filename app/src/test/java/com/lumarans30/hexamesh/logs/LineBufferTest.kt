@@ -4,7 +4,6 @@ import org.junit.Assert.assertEquals
 import org.junit.Test
 
 class LineBufferTest {
-
     @Test
     fun `keeps only the most recent lines`() {
         val buffer = LineBuffer(capacity = 3)

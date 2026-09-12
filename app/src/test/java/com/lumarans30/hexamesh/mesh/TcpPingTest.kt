@@ -1,13 +1,12 @@
 package com.lumarans30.hexamesh.mesh
 
-import java.net.ServerSocket
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import java.net.ServerSocket
 
 class TcpPingTest {
-
     @Test
     fun `reports a latency for a listening socket`() {
         ServerSocket(0).use { server ->

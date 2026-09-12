@@ -159,9 +159,12 @@ private fun peerCard(peer: PeerNode) {
                         when (peer.source) {
                             PeerSource.Discovered -> R.string.mesh_source_discovered
                             PeerSource.Manual -> R.string.mesh_source_manual
-                        }
+                        },
                     )
-                val latency = peer.stats.latencyMs?.let { " · ${it} ms" }.orEmpty()
+                val latency =
+                    peer.stats.latencyMs
+                        ?.let { " · $it ms" }
+                        .orEmpty()
                 Text(
                     text = "${peer.endpoint} · $source$latency",
                     style = MaterialTheme.typography.bodySmall,
@@ -189,7 +192,10 @@ private fun emptyPeers() {
 }
 
 @Composable
-private fun fallbackEditor(value: String, onApply: (String) -> Unit) {
+private fun fallbackEditor(
+    value: String,
+    onApply: (String) -> Unit,
+) {
     var text by rememberSaveable(value) { mutableStateOf(value) }
 
     Column {

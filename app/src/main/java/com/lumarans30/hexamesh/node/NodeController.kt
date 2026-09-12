@@ -5,8 +5,6 @@ import com.lumarans30.hexamesh.bridge.EngineStatus
 import com.lumarans30.hexamesh.bridge.ServerConfig
 import com.lumarans30.hexamesh.bridge.ServerRole
 import com.lumarans30.hexamesh.mesh.DEFAULT_RPC_PORT
-import java.net.Inet4Address
-import java.net.NetworkInterface
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -20,8 +18,9 @@ import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import java.net.Inet4Address
+import java.net.NetworkInterface
 import kotlin.time.Duration.Companion.milliseconds
-
 
 class NodeController(
     private val env: NodeEnvironment,
@@ -80,7 +79,7 @@ class NodeController(
                         rpcServers = rpcServers.orEmpty(),
                         rpcPort = DEFAULT_RPC_PORT,
                         modelsDir = env.modelsDir,
-                    )
+                    ),
                 )
             } catch (t: Throwable) {
                 teardown()
@@ -132,15 +131,18 @@ class NodeController(
 
                         if (!(first && status.state == EngineStatus.STOPPED)) {
                             when (status.state) {
-                                EngineStatus.RUNNING ->
+                                EngineStatus.RUNNING -> {
                                     post(NodeState.Running(runningEndpoint(), activeIsWorker))
+                                }
 
                                 EngineStatus.ERROR -> {
                                     fail(status.message ?: env.serverDiedMessage)
                                     return@launch
                                 }
 
-                                else -> Unit
+                                else -> {
+                                    Unit
+                                }
                             }
                         }
                     }
@@ -173,7 +175,8 @@ class NodeController(
 
     private fun lanIpv4Address(): String? =
         runCatching {
-            NetworkInterface.getNetworkInterfaces()
+            NetworkInterface
+                .getNetworkInterfaces()
                 .asSequence()
                 .filter { it.isUp && !it.isLoopback }
                 .flatMap { it.inetAddresses.asSequence() }

@@ -54,7 +54,10 @@ fun settingsScreen(
     val savedMessage = stringResource(R.string.args_saved)
     val defaultsMessage = stringResource(R.string.defaults_restored)
 
-    fun save(text: String, message: String) {
+    fun save(
+        text: String,
+        message: String,
+    ) {
         keyboard?.hide()
         focusManager.clearFocus()
         onApply(text)
@@ -90,7 +93,7 @@ fun settingsScreen(
                                 stringResource(
                                     R.string.managed_flags_ignored,
                                     lockedFlags.joinToString(" "),
-                                )
+                                ),
                             )
                         }
                     } else {
@@ -112,7 +115,7 @@ fun settingsScreen(
                     onClick = {
                         argsText = DEFAULT_LAUNCH_ARGS
                         save(DEFAULT_LAUNCH_ARGS, defaultsMessage)
-                    }
+                    },
                 ) {
                     Text(stringResource(R.string.reset_defaults))
                 }

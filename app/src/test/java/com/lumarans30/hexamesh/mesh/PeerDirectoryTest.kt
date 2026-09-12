@@ -3,11 +3,14 @@ package com.lumarans30.hexamesh.mesh
 import org.junit.Assert.assertEquals
 import org.junit.Test
 
-private fun node(id: String, host: String, port: Int, source: PeerSource) =
-    PeerNode(id = id, name = id, host = host, port = port, source = source)
+private fun node(
+    id: String,
+    host: String,
+    port: Int,
+    source: PeerSource,
+) = PeerNode(id = id, name = id, host = host, port = port, source = source)
 
 class PeerDirectoryTest {
-
     @Test
     fun `a manual entry overrides the discovered peer at the same endpoint`() {
         val discovered = listOf(node("auto", "10.0.0.2", 50052, PeerSource.Discovered))

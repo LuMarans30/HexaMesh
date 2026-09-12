@@ -4,7 +4,6 @@ import org.junit.Assert.assertEquals
 import org.junit.Test
 
 class HexaTabTest {
-
     @Test
     fun `tabs keep the roadmap order`() {
         assertEquals(
