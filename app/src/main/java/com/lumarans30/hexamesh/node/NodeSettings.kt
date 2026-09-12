@@ -14,8 +14,4 @@ interface NodeSettings {
     /** [ServerRole.SERVER] to serve the API, [ServerRole.RPC] to expose devices. */
     val role: String
         get() = ServerRole.SERVER
-
-    /** Serve every model in the models directory (router mode) instead of one `-m`. */
-    val routerMode: Boolean
-        get() = false
 }

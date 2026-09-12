@@ -36,47 +36,33 @@ class NodeController(
     private var running = false
 
     @Volatile
-    private var activeModelPath: String? = null
-
-    @Volatile
-    private var activeRouter = false
-
-    @Volatile
     private var activePort: Int = env.settings.port
 
     private var statusJob: Job? = null
 
-    fun start(modelPath: String?, rpcServers: String? = null) {
-        scope.launch { applyModel(modelPath, rpcServers) }
+    fun start(rpcServers: String? = null) {
+        scope.launch { startNode(rpcServers) }
     }
 
     fun stop() {
         scope.launch { unload() }
     }
 
-    internal suspend fun applyModel(modelPath: String?, rpcServers: String? = null) =
+    internal suspend fun startNode(rpcServers: String? = null) =
         transition.withLock {
-            val router = env.settings.routerMode
-            val target = if (router) env.modelsDir else modelPath
-            if (target == null) {
-                post(NodeState.Idle)
-                return@withLock
-            }
             if (running) return@withLock
 
             running = true
-            activeModelPath = target
-            activeRouter = router
             val port = env.settings.port
             val extraArgs = env.settings.launchArgs.joinToString("\n")
             activePort = port
             env.locks.acquire()
-            post(NodeState.Starting(target, router))
+            post(NodeState.Starting)
 
             try {
                 engine.start(
                     ServerConfig(
-                        modelPath = if (router) "" else modelPath.orEmpty(),
+                        modelPath = "",
                         nativeLibDir = env.nativeLibDir,
                         cacheDir = env.cacheDir,
                         llamaCacheDir = env.llamaCacheDir,
@@ -86,7 +72,7 @@ class NodeController(
                         extraArgs = extraArgs,
                         role = env.settings.role,
                         rpcServers = rpcServers.orEmpty(),
-                        modelsDir = if (router) env.modelsDir else "",
+                        modelsDir = env.modelsDir,
                     )
                 )
             } catch (t: Throwable) {
@@ -102,7 +88,7 @@ class NodeController(
         transition.withLock {
             if (!running) return@withLock
 
-            activeModelPath?.let { post(NodeState.Stopping(it, activeRouter)) }
+            post(NodeState.Stopping)
             teardown()
             post(NodeState.Stopped)
         }
@@ -139,14 +125,7 @@ class NodeController(
 
                         if (!(first && status.state == EngineStatus.STOPPED)) {
                             when (status.state) {
-                                EngineStatus.RUNNING -> {
-                                    val model = activeModelPath
-                                    if (model != null) {
-                                        post(
-                                            NodeState.Running(model, lanServerUrl(), activeRouter)
-                                        )
-                                    }
-                                }
+                                EngineStatus.RUNNING -> post(NodeState.Running(lanServerUrl()))
 
                                 EngineStatus.ERROR -> {
                                     fail(status.message ?: env.serverDiedMessage)
@@ -165,8 +144,6 @@ class NodeController(
 
     private suspend fun teardown(stopWatcher: Boolean = true) {
         running = false
-        activeModelPath = null
-        activeRouter = false
         if (stopWatcher) {
             statusJob?.cancelAndJoin()
         }

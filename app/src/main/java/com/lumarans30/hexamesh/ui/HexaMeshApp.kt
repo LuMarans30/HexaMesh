@@ -61,7 +61,6 @@ fun hexaMeshApp(
     val nodeState by nodeViewModel.state.collectAsStateWithLifecycle()
     val transfer by transferViewModel.uiState.collectAsStateWithLifecycle()
     val launchArgs by settingsViewModel.launchArgs.collectAsStateWithLifecycle()
-    val routerMode by settingsViewModel.routerMode.collectAsStateWithLifecycle()
     val logLines by logsViewModel.lines.collectAsStateWithLifecycle()
     val nodeMetrics by logsViewModel.metrics.collectAsStateWithLifecycle()
     val meshPeers by meshViewModel.peers.collectAsStateWithLifecycle()
@@ -73,8 +72,6 @@ fun hexaMeshApp(
         ManagerUiState(
             node = nodeState,
             models = transfer.models,
-            selectedPath = transfer.selectedPath,
-            routerMode = routerMode,
             batteryExempt = batteryExempt,
             apiKey = nodeViewModel.apiKey,
             adbPushHint = transfer.adbPushHint,
@@ -95,9 +92,7 @@ fun hexaMeshApp(
             onFixBattery,
         ) {
             ManagerActions(
-                onSelect = transferViewModel::select,
                 onDelete = transferViewModel::delete,
-                onRouterModeChange = settingsViewModel::setRouterMode,
                 onDownload = transferViewModel::startDownload,
                 onCancelDownload = transferViewModel::cancelDownload,
                 onImport = onPickModel,
@@ -110,12 +105,7 @@ fun hexaMeshApp(
                     onOpenAllFilesSettings()
                 },
                 onGrantDismiss = transferViewModel::onGrantDismiss,
-                onStart = {
-                    nodeViewModel.start(
-                        transferViewModel.uiState.value.selectedPath,
-                        meshViewModel.rpcEndpoints(),
-                    )
-                },
+                onStart = { nodeViewModel.start(meshViewModel.rpcEndpoints()) },
                 onStop = nodeViewModel::stop,
                 onFixBattery = onFixBattery,
             )
@@ -125,7 +115,6 @@ fun hexaMeshApp(
         state = state,
         actions = actions,
         launchArgs = launchArgs,
-        routerMode = routerMode,
         onApplySettings = settingsViewModel::apply,
         logLines = logLines,
         nodeMetrics = nodeMetrics,
@@ -152,7 +141,6 @@ private fun hexaMeshShell(
     state: ManagerUiState,
     actions: ManagerActions,
     launchArgs: String,
-    routerMode: Boolean,
     onApplySettings: (String) -> Unit,
     logLines: List<String>,
     nodeMetrics: NodeMetrics,
@@ -196,8 +184,6 @@ private fun hexaMeshShell(
             Column {
                 nodeActionBar(
                     state = state.node,
-                    hasSelection = state.selectedPath != null,
-                    routerMode = routerMode,
                     onStart = actions.onStart,
                     onStop = actions.onStop,
                 )
@@ -244,23 +230,21 @@ private fun hexaMeshShell(
 
 /**
  * Start/stop control that stays reachable from every tab. Mirrors the enabled
- * rules of [canLoad] so the button never invites an invalid action.
+ * rules of [controlsEnabled] so the button never invites an invalid action.
  */
 @Composable
 private fun nodeActionBar(
     state: NodeState,
-    hasSelection: Boolean,
-    routerMode: Boolean,
     onStart: () -> Unit,
     onStop: () -> Unit,
 ) {
     val busy = state is NodeState.Starting || state is NodeState.Stopping
-    val running = state is NodeState.Running || state is NodeState.Idle
+    val running = state is NodeState.Running
     val enabled =
         when {
             busy -> false
             running -> true
-            else -> canLoad(state, hasSelection, routerMode)
+            else -> controlsEnabled(state)
         }
 
     Surface(tonalElevation = 3.dp, modifier = Modifier.fillMaxWidth()) {

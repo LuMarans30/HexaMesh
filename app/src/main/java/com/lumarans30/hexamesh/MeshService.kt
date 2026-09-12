@@ -27,7 +27,6 @@ class MeshService : Service() {
 
     companion object {
         private const val TAG = "MeshService"
-        const val EXTRA_MODEL_PATH = "com.lumarans30.hexamesh.extra.MODEL_PATH"
         const val EXTRA_RPC_SERVERS = "com.lumarans30.hexamesh.extra.RPC_SERVERS"
         const val ACTION_STOP = "com.lumarans30.hexamesh.action.STOP"
     }
@@ -74,9 +73,7 @@ class MeshService : Service() {
         scope.launch {
             node.state.collect { state ->
                 val settled =
-                    state is NodeState.Stopped ||
-                            state is NodeState.Idle ||
-                            state is NodeState.Error
+                    state is NodeState.Stopped || state is NodeState.Error
                 if (foregroundActive) {
                     if (settled) hideForeground(stopSelf = true) else notifications.update(state)
                 }
@@ -92,19 +89,9 @@ class MeshService : Service() {
             return START_NOT_STICKY
         }
 
-        val requestedModelPath = intent?.getStringExtra(EXTRA_MODEL_PATH)
-        val modelPath = requestedModelPath ?: models.selected()?.path
-
         showForeground(node.state.value)
 
-        if (modelPath == null && !settings.routerMode) {
-            Log.w(TAG, "No .gguf model found. Skipping node start.")
-            hideForeground(stopSelf = true)
-            return START_NOT_STICKY
-        }
-
-        Log.i(TAG, "Starting node with model: $modelPath")
-        node.start(modelPath, intent?.getStringExtra(EXTRA_RPC_SERVERS))
+        node.start(intent?.getStringExtra(EXTRA_RPC_SERVERS))
         return START_STICKY
     }
 

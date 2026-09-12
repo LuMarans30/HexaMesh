@@ -34,7 +34,6 @@ import kotlinx.coroutines.launch
 /** Model library plus the download/import transfers that feed it. */
 data class TransferUiState(
     val models: List<Model> = emptyList(),
-    val selectedPath: String? = null,
     val adbPushHint: String = "",
     val download: DownloadStatus? = null,
     val downloadError: String? = null,
@@ -55,7 +54,6 @@ class TransferViewModel(application: Application) : AndroidViewModel(application
     private val apiKey = ApiKeyManager.getOrCreateApiKey(context)
 
     private val models = MutableStateFlow<List<Model>>(emptyList())
-    private val selectedPath = MutableStateFlow<String?>(null)
     private val importPrompt = MutableStateFlow<ImportPrompt?>(null)
 
     private var importCandidate: ImportCandidate? = null
@@ -71,14 +69,12 @@ class TransferViewModel(application: Application) : AndroidViewModel(application
     val uiState: StateFlow<TransferUiState> =
         combine(
             models,
-            selectedPath,
             importPrompt,
             downloadInfos,
             importInfos,
-        ) { models, selected, prompt, downloads, imports ->
+        ) { models, prompt, downloads, imports ->
             TransferUiState(
                 models = models,
-                selectedPath = selected,
                 adbPushHint = repository.adbPushHint(),
                 download = downloads.activeTransfer(),
                 downloadError = downloads.failureMessage(ModelDownloadWorker.KEY_ERROR),
@@ -105,7 +101,6 @@ class TransferViewModel(application: Application) : AndroidViewModel(application
 
     fun refreshModels() {
         models.value = repository.list()
-        selectedPath.value = repository.selected()?.path
     }
 
     fun onResumed() {
@@ -114,11 +109,6 @@ class TransferViewModel(application: Application) : AndroidViewModel(application
             awaitingGrant = false
             importCandidate?.let { importPrompt.value = ImportPrompt.Choose(it.name, it.sizeBytes) }
         }
-    }
-
-    fun select(model: Model) {
-        repository.select(model)
-        selectedPath.value = model.path
     }
 
     fun delete(model: Model) {
@@ -220,8 +210,6 @@ class TransferViewModel(application: Application) : AndroidViewModel(application
 
     /** Best-effort: ask a running router to re-scan its models directory. */
     private fun reloadRouter() {
-        if (!settings.routerMode) return
-
         viewModelScope.launch(Dispatchers.IO) {
             runCatching { ModelsClient(settings.port, apiKey).reload() }
         }

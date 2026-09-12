@@ -59,10 +59,9 @@ class NodeViewModel(application: Application) : AndroidViewModel(application) {
             )
     }
 
-    fun start(modelPath: String?, rpcServers: String? = null) {
+    fun start(rpcServers: String? = null) {
         val intent =
             Intent(context, MeshService::class.java).apply {
-                if (modelPath != null) putExtra(MeshService.EXTRA_MODEL_PATH, modelPath)
                 if (!rpcServers.isNullOrEmpty()) {
                     putExtra(MeshService.EXTRA_RPC_SERVERS, rpcServers)
                 }

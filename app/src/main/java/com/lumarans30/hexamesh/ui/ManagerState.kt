@@ -11,8 +11,6 @@ import com.lumarans30.hexamesh.node.NodeState
 data class ManagerUiState(
     val node: NodeState = NodeState.Stopped,
     val models: List<Model> = emptyList(),
-    val selectedPath: String? = null,
-    val routerMode: Boolean = false,
     val batteryExempt: Boolean = false,
     val apiKey: String = "",
     val adbPushHint: String = "",
@@ -25,9 +23,7 @@ data class ManagerUiState(
 
 /** Callbacks the Manage screen raises, grouped so the screen signature stays small. */
 class ManagerActions(
-    val onSelect: (Model) -> Unit,
     val onDelete: (Model) -> Unit,
-    val onRouterModeChange: (Boolean) -> Unit,
     val onDownload: (DownloadRequest) -> Unit,
     val onCancelDownload: () -> Unit,
     val onImport: () -> Unit,

@@ -10,7 +10,6 @@ import com.lumarans30.hexamesh.MainActivity
 import com.lumarans30.hexamesh.MeshService
 import com.lumarans30.hexamesh.R
 import com.lumarans30.hexamesh.node.NodeState
-import java.io.File
 
 class Notifications(context: Context) {
 
@@ -77,20 +76,12 @@ class Notifications(context: Context) {
 
     private fun contentText(state: NodeState): String =
         when (state) {
-            is NodeState.Starting ->
-                app.getString(R.string.notif_starting, label(state.router, state.modelPath))
-            is NodeState.Running ->
-                app.getString(R.string.notif_running, label(state.router, state.modelPath))
-            is NodeState.Stopping ->
-                app.getString(R.string.notif_stopping, label(state.router, state.modelPath))
+            is NodeState.Starting -> app.getString(R.string.notif_starting)
+            is NodeState.Running -> app.getString(R.string.notif_running)
+            is NodeState.Stopping -> app.getString(R.string.notif_stopping)
             is NodeState.Error -> app.getString(R.string.notif_error, state.message)
-            is NodeState.Idle, is NodeState.Stopped -> app.getString(R.string.notif_waiting_model)
+            is NodeState.Stopped -> app.getString(R.string.notif_stopped)
         }
-
-    private fun label(router: Boolean, path: String): String =
-        if (router) app.getString(R.string.notif_router) else fileName(path)
-
-    private fun fileName(path: String): String = File(path).name
 
     companion object {
         const val CHANNEL_ID = "hexamesh_node"

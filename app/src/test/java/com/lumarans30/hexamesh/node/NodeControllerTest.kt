@@ -50,38 +50,25 @@ class NodeControllerTest {
     }
 
     @Test
-    fun `no model posts idle without touching locks or engine`() = runTest {
-        val controller = newController()
-
-        controller.applyModel(null)
-
-        assertEquals(NodeState.Idle, controller.state.value)
-        assertEquals(0, locks.acquires)
-        assertEquals(0, engine.started.size)
-    }
-
-    @Test
-    fun `load acquires locks, starts engine, then reaches running`() = runTest {
+    fun `start serves the models directory as a router`() = runTest {
         val controller = newController()
         engine.status = EngineStatus(EngineStatus.RUNNING, "ready")
 
-        controller.applyModel(MODEL)
+        controller.startNode()
 
-        assertEquals(NodeState.Starting(MODEL), controller.state.value)
+        assertEquals(NodeState.Starting, controller.state.value)
 
         runCurrent()
 
-        val running = controller.state.value
-        assertTrue(running is NodeState.Running)
-        assertEquals(MODEL, (running as NodeState.Running).modelPath)
+        assertTrue(controller.state.value is NodeState.Running)
         assertEquals(1, locks.acquires)
 
         val config = engine.started.single()
-        assertEquals(MODEL, config.modelPath)
+        assertEquals("", config.modelPath)
+        assertEquals("/models", config.modelsDir)
         assertEquals("/lib", config.nativeLibDir)
         assertEquals("/cache", config.cacheDir)
         assertEquals("/cache/hf", config.llamaCacheDir)
-        assertEquals("", config.modelsDir)
         assertEquals("key", config.apiKey)
         assertEquals(8080, config.port)
 
@@ -94,7 +81,7 @@ class NodeControllerTest {
         settings.portValue = 9090
         engine.status = EngineStatus(EngineStatus.RUNNING, "ready")
 
-        controller.applyModel(MODEL)
+        controller.startNode()
         runCurrent()
 
         assertEquals(9090, engine.started.single().port)
@@ -111,18 +98,15 @@ class NodeControllerTest {
         val controller = newController()
         engine.status = EngineStatus(EngineStatus.RUNNING, "ready")
 
-        controller.applyModel(MODEL)
+        controller.startNode()
         runCurrent()
         controller.unload()
 
         settings.portValue = 9090
-        controller.applyModel(MODEL)
+        controller.startNode()
         runCurrent()
 
         assertEquals(listOf(8080, 9090), engine.started.map { it.port })
-        val running = controller.state.value
-        assertTrue(running is NodeState.Running)
-        assertTrue((running as NodeState.Running).serverUrl.endsWith(":9090"))
 
         controller.unload()
     }
@@ -133,7 +117,7 @@ class NodeControllerTest {
         settings.launchArgsValue = listOf("-t", "8", "--no-warmup")
         engine.status = EngineStatus(EngineStatus.RUNNING, "ready")
 
-        controller.applyModel(MODEL)
+        controller.startNode()
         runCurrent()
 
         assertEquals("-t\n8\n--no-warmup", engine.started.single().extraArgs)
@@ -147,7 +131,7 @@ class NodeControllerTest {
         settings.roleValue = ServerRole.RPC
         engine.status = EngineStatus(EngineStatus.RUNNING, "ready")
 
-        controller.applyModel(MODEL)
+        controller.startNode()
         runCurrent()
 
         assertEquals(ServerRole.RPC, engine.started.single().role)
@@ -160,7 +144,7 @@ class NodeControllerTest {
         val controller = newController()
         engine.status = EngineStatus(EngineStatus.RUNNING, "ready")
 
-        controller.applyModel(MODEL, "192.168.1.76:50052")
+        controller.startNode("192.168.1.76:50052")
         runCurrent()
 
         assertEquals("192.168.1.76:50052", engine.started.single().rpcServers)
@@ -171,13 +155,13 @@ class NodeControllerTest {
     @Test
     fun `unload announces stopping before releasing locks`() = runTest {
         val controller = newController()
-        controller.applyModel(MODEL)
+        controller.startNode()
         runCurrent()
 
         engine.stateWhenStopped = null
         controller.unload()
 
-        assertEquals(NodeState.Stopping(MODEL), engine.stateWhenStopped)
+        assertEquals(NodeState.Stopping, engine.stateWhenStopped)
         assertEquals(NodeState.Stopped, controller.state.value)
         assertEquals(1, locks.releases)
         assertEquals(1, engine.stopCount)
@@ -198,7 +182,7 @@ class NodeControllerTest {
     fun `concurrent loads only start the engine once`() = runTest {
         val controller = newController()
 
-        List(5) { launch { controller.applyModel(MODEL) } }.forEach { it.join() }
+        List(5) { launch { controller.startNode() } }.forEach { it.join() }
 
         assertEquals(1, engine.started.size)
         assertEquals(1, locks.acquires)
@@ -209,7 +193,7 @@ class NodeControllerTest {
     @Test
     fun `concurrent unloads only stop the engine once`() = runTest {
         val controller = newController()
-        controller.applyModel(MODEL)
+        controller.startNode()
         runCurrent()
 
         List(5) { launch { controller.unload() } }.forEach { it.join() }
@@ -222,10 +206,10 @@ class NodeControllerTest {
     fun `a load after an unload starts a fresh engine`() = runTest {
         val controller = newController()
 
-        controller.applyModel(MODEL)
+        controller.startNode()
         runCurrent()
         controller.unload()
-        controller.applyModel(MODEL)
+        controller.startNode()
         runCurrent()
 
         assertEquals(2, engine.started.size)
@@ -241,7 +225,7 @@ class NodeControllerTest {
         val controller = newController()
         engine.startError = IllegalStateException("boom")
 
-        controller.applyModel(MODEL)
+        controller.startNode()
 
         val state = controller.state.value
         assertTrue(state is NodeState.Error)
@@ -256,7 +240,7 @@ class NodeControllerTest {
         val controller = newController()
         engine.status = EngineStatus(EngineStatus.ERROR, "died")
 
-        controller.applyModel(MODEL)
+        controller.startNode()
         runCurrent()
 
         val state = controller.state.value
@@ -264,26 +248,6 @@ class NodeControllerTest {
         assertEquals("died", (state as NodeState.Error).message)
         assertEquals(1, locks.releases)
         assertEquals(1, engine.stopCount)
-    }
-
-    @Test
-    fun `router mode starts with the models dir and no model`() = runTest {
-        val controller = newController()
-        settings.routerModeValue = true
-        engine.status = EngineStatus(EngineStatus.RUNNING, "ready")
-
-        controller.applyModel("/models/a.gguf")
-        runCurrent()
-
-        val config = engine.started.single()
-        assertEquals("", config.modelPath)
-        assertEquals("/models", config.modelsDir)
-
-        val running = controller.state.value as NodeState.Running
-        assertTrue(running.router)
-        assertEquals("/models", running.modelPath)
-
-        controller.unload()
     }
 
     private class FakeLocks : Locks {
@@ -303,7 +267,6 @@ class NodeControllerTest {
         var portValue: Int = 8080,
         var launchArgsValue: List<String> = emptyList(),
         var roleValue: String = ServerRole.SERVER,
-        var routerModeValue: Boolean = false,
     ) : NodeSettings {
         override val port: Int
             get() = portValue
@@ -313,9 +276,6 @@ class NodeControllerTest {
 
         override val role: String
             get() = roleValue
-
-        override val routerMode: Boolean
-            get() = routerModeValue
     }
 
     private class FakeEngine : Engine {
@@ -337,9 +297,5 @@ class NodeControllerTest {
         }
 
         override fun pollStatus(): EngineStatus? = status
-    }
-
-    private companion object {
-        const val MODEL = "/models/tiny.gguf"
     }
 }

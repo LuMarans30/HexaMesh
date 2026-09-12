@@ -32,9 +32,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Surface
-import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberModalBottomSheetState
@@ -47,7 +45,6 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
@@ -61,7 +58,6 @@ import com.lumarans30.hexamesh.node.DownloadRequest
 import com.lumarans30.hexamesh.node.Model
 import com.lumarans30.hexamesh.node.NodeState
 import com.lumarans30.hexamesh.node.parseDownloadRequest
-import java.io.File
 import java.util.Locale
 import kotlinx.coroutines.launch
 
@@ -77,7 +73,6 @@ fun nodeScreen(
     modifier: Modifier = Modifier,
 ) {
     val nodeState = state.node
-    val activeModelPath = (nodeState as? NodeState.Running)?.modelPath
     var pendingDelete by remember { mutableStateOf<Model?>(null) }
     var sheetOpen by rememberSaveable { mutableStateOf(false) }
     val sheetState = rememberModalBottomSheetState()
@@ -96,15 +91,7 @@ fun nodeScreen(
                 .verticalScroll(rememberScrollState())
                 .padding(24.dp),
     ) {
-        statusHero(nodeState, state.apiKey, state.routerMode)
-
-        Spacer(Modifier.height(16.dp))
-
-        routerModeCard(
-            routerMode = state.routerMode,
-            enabled = selectionEnabled(nodeState),
-            onChange = actions.onRouterModeChange,
-        )
+        statusHero(nodeState, state.apiKey)
 
         Spacer(Modifier.height(24.dp))
 
@@ -121,10 +108,7 @@ fun nodeScreen(
         } else {
             modelList(
                 models = state.models,
-                selectedPath = if (state.routerMode) null else state.selectedPath,
-                selectEnabled = canSelect(nodeState, state.routerMode),
-                canDelete = { canDelete(nodeState, it, activeModelPath) },
-                onSelect = actions.onSelect,
+                deleteEnabled = controlsEnabled(nodeState),
                 onDelete = { pendingDelete = it },
             )
         }
@@ -191,35 +175,6 @@ fun nodeScreen(
                     onOpenSettings = actions.onGrantAccess,
                     onDismiss = actions.onGrantDismiss,
                 )
-        }
-    }
-}
-
-@Composable
-private fun routerModeCard(routerMode: Boolean, enabled: Boolean, onChange: (Boolean) -> Unit) {
-    Surface(
-        color = MaterialTheme.colorScheme.surfaceVariant,
-        shape = RoundedCornerShape(20.dp),
-        modifier = Modifier.fillMaxWidth(),
-    ) {
-        Row(
-            modifier = Modifier.padding(16.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Column(Modifier.weight(1f)) {
-                Text(
-                    text = stringResource(R.string.router_mode),
-                    style = MaterialTheme.typography.titleMedium,
-                )
-                Spacer(Modifier.height(4.dp))
-                Text(
-                    text = stringResource(R.string.router_mode_hint),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
-            Spacer(Modifier.width(16.dp))
-            Switch(checked = routerMode, onCheckedChange = onChange, enabled = enabled)
         }
     }
 }
@@ -426,20 +381,14 @@ private fun ingestionSheet(
 @Composable
 private fun modelList(
     models: List<Model>,
-    selectedPath: String?,
-    selectEnabled: Boolean,
-    canDelete: (Model) -> Boolean,
-    onSelect: (Model) -> Unit,
+    deleteEnabled: Boolean,
     onDelete: (Model) -> Unit,
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         models.forEach { model ->
             modelRow(
                 model = model,
-                selected = model.path == selectedPath,
-                selectEnabled = selectEnabled,
-                deleteEnabled = canDelete(model),
-                onClick = { onSelect(model) },
+                deleteEnabled = deleteEnabled,
                 onDelete = { onDelete(model) },
             )
         }
@@ -449,44 +398,28 @@ private fun modelList(
 @Composable
 private fun modelRow(
     model: Model,
-    selected: Boolean,
-    selectEnabled: Boolean,
     deleteEnabled: Boolean,
-    onClick: () -> Unit,
     onDelete: () -> Unit,
 ) {
     Surface(
-        color =
-            if (selected) {
-                MaterialTheme.colorScheme.primaryContainer
-            } else {
-                MaterialTheme.colorScheme.surfaceVariant
-            },
+        color = MaterialTheme.colorScheme.surfaceVariant,
         shape = MaterialTheme.shapes.medium,
         modifier = Modifier.fillMaxWidth(),
     ) {
         Row(
             modifier =
                 Modifier.fillMaxWidth()
-                    .clickable(enabled = selectEnabled, onClick = onClick)
-                    .padding(start = 8.dp, top = 4.dp, end = 4.dp, bottom = 4.dp),
+                    .padding(start = 16.dp, top = 4.dp, end = 4.dp, bottom = 4.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Row(
-                modifier =
-                    Modifier.weight(1f).alpha(if (selectEnabled) 1f else 0.45f),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                RadioButton(selected = selected, onClick = onClick, enabled = selectEnabled)
-                Column(Modifier.weight(1f).padding(start = 4.dp)) {
-                    Text(
-                        text = model.id,
-                        style = MaterialTheme.typography.bodyLarge,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                    )
-                    Text(formatSize(model.sizeBytes), style = MaterialTheme.typography.bodySmall)
-                }
+            Column(Modifier.weight(1f)) {
+                Text(
+                    text = model.id,
+                    style = MaterialTheme.typography.bodyLarge,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                Text(formatSize(model.sizeBytes), style = MaterialTheme.typography.bodySmall)
             }
             IconButton(onClick = onDelete, enabled = deleteEnabled) {
                 Icon(
@@ -565,30 +498,15 @@ private fun grantAccessDialog(name: String, onOpenSettings: () -> Unit, onDismis
 }
 
 @Composable
-private fun statusHero(state: NodeState, apiKey: String, routerMode: Boolean) {
+private fun statusHero(state: NodeState, apiKey: String) {
     when (state) {
-        is NodeState.Running ->
-            servingCard(
-                modelName = if (state.router) "all models" else File(state.modelPath).name,
-                serverUrl = state.serverUrl,
-                apiKey = apiKey,
-            )
+        is NodeState.Running -> servingCard(serverUrl = state.serverUrl, apiKey = apiKey)
 
         is NodeState.Stopped ->
             statusCard(
                 accent = MaterialTheme.colorScheme.onSurfaceVariant,
                 title = "Node stopped",
-                subtitle =
-                    if (routerMode) "Tap Start Node to serve every model."
-                    else "Select a model, then tap Start Node.",
-                symbol = "○",
-            )
-
-        is NodeState.Idle ->
-            statusCard(
-                accent = MaterialTheme.colorScheme.tertiary,
-                title = "Service running",
-                subtitle = "No model selected to load.",
+                subtitle = "Tap Start Node to serve every model.",
                 symbol = "○",
             )
 
@@ -596,9 +514,7 @@ private fun statusHero(state: NodeState, apiKey: String, routerMode: Boolean) {
             statusCard(
                 accent = MaterialTheme.colorScheme.primary,
                 title = "Starting llama-server",
-                subtitle =
-                    if (state.router) "Loading models from the models folder…"
-                    else "Loading ${File(state.modelPath).name}…",
+                subtitle = "Scanning the models folder…",
                 busy = true,
             )
 
@@ -668,7 +584,7 @@ private fun statusCard(
 }
 
 @Composable
-private fun servingCard(modelName: String, serverUrl: String, apiKey: String) {
+private fun servingCard(serverUrl: String, apiKey: String) {
     val accent = MaterialTheme.colorScheme.primary
 
     Surface(
@@ -698,7 +614,7 @@ private fun servingCard(modelName: String, serverUrl: String, apiKey: String) {
                         style = MaterialTheme.typography.titleMedium,
                     )
                     Text(
-                        text = modelName,
+                        text = "all models",
                         color = accent.copy(alpha = 0.8f),
                         style = MaterialTheme.typography.bodyMedium,
                         maxLines = 1,
@@ -741,21 +657,12 @@ private fun connectionRow(label: String, value: String, accent: Color) {
     }
 }
 
-internal fun selectionEnabled(state: NodeState): Boolean =
+/** Model deletion and the Start action are only offered from a settled state. */
+internal fun controlsEnabled(state: NodeState): Boolean =
     when (state) {
-        is NodeState.Stopped, is NodeState.Idle, is NodeState.Error -> true
+        is NodeState.Stopped, is NodeState.Error -> true
         is NodeState.Starting, is NodeState.Stopping, is NodeState.Running -> false
     }
-
-/** Router mode serves every model by name, so the single-model picker is inert. */
-internal fun canSelect(state: NodeState, routerMode: Boolean): Boolean =
-    selectionEnabled(state) && !routerMode
-
-internal fun canDelete(state: NodeState, model: Model, activeModelPath: String?): Boolean =
-    selectionEnabled(state) && model.path != activeModelPath
-
-internal fun canLoad(state: NodeState, hasSelection: Boolean, routerMode: Boolean = false): Boolean =
-    (routerMode || hasSelection) && (state is NodeState.Stopped || state is NodeState.Error)
 
 internal fun formatSize(bytes: Long): String {
     if (bytes < 1024) return "$bytes B"

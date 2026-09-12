@@ -12,9 +12,5 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
 
     val launchArgs: StateFlow<String> = settings.launchArgsFlow
 
-    val routerMode: StateFlow<Boolean> = settings.routerModeFlow
-
     fun apply(launchArgs: String) = settings.setLaunchArgs(launchArgs)
-
-    fun setRouterMode(enabled: Boolean) = settings.setRouterMode(enabled)
 }
