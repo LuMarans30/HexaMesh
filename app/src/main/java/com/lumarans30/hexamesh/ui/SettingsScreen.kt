@@ -25,6 +25,8 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.lumarans30.hexamesh.R
@@ -48,10 +50,14 @@ fun settingsScreen(
     var argsText by rememberSaveable { mutableStateOf(launchArgs) }
     val lockedFlags = lockedLaunchFlags(parseLaunchArgs(argsText))
     val scope = rememberCoroutineScope()
+    val keyboard = LocalSoftwareKeyboardController.current
+    val focusManager = LocalFocusManager.current
     val savedMessage = stringResource(R.string.args_saved)
     val defaultsMessage = stringResource(R.string.defaults_restored)
 
     fun save(text: String, message: String) {
+        keyboard?.hide()
+        focusManager.clearFocus()
         onApply(text)
         scope.launch { snackbarHostState.showSnackbar(message) }
     }
