@@ -160,9 +160,10 @@ Phase notes (the load-bearing bits):
   SIGKILLed router. Still open: download ownership (`POST /models` vs
   `ModelDownloadWorker`); `SlotsClient` needs `?model=`; and router clients must
   send a valid model id (a hardcoded or missing one gets a 400). The single-model
-  escape hatch is typing `-m <path>` in Settings (`-m` is unlocked), though the
-  Manage status still reads "all models" because the UI does not track a forced
-  mode. `ModelsClient.reload()` (`GET /models?reload=1`) runs from
+  escape hatch is typing `-m <path>` in Settings (`-m` is unlocked); the
+  notification then names that model (`servedModelLabel` reads it back out of the
+  args — `--alias`, else the `-m` filename, else `-hf`), while the Manage status
+  still reads "all models" because it does not track a forced mode. `ModelsClient.reload()` (`GET /models?reload=1`) runs from
   `TransferViewModel` after an import/download/delete and on app resume, so a
   model added to the folder while the router runs appears without a restart.
   **Verified on device** (Poco F7/Adreno, `LLAMA_SUBPROCESS=ON`):
