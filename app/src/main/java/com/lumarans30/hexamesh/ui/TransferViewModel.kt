@@ -15,11 +15,15 @@ import com.lumarans30.hexamesh.node.Model
 import com.lumarans30.hexamesh.node.ModelDownloadWorker
 import com.lumarans30.hexamesh.node.ModelImportWorker
 import com.lumarans30.hexamesh.node.ModelRepository
+import com.lumarans30.hexamesh.node.ModelsClient
 import com.lumarans30.hexamesh.platform.AllFilesAccess
+import com.lumarans30.hexamesh.platform.ApiKeyManager
+import com.lumarans30.hexamesh.platform.ServerSettings
 import com.lumarans30.hexamesh.platform.displayName
 import com.lumarans30.hexamesh.platform.documentSize
 import com.lumarans30.hexamesh.platform.realPath
 import java.io.File
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -47,6 +51,8 @@ class TransferViewModel(application: Application) : AndroidViewModel(application
     private val context = application.applicationContext
     private val repository = ModelRepository(context)
     private val workManager = WorkManager.getInstance(context)
+    private val settings = ServerSettings.from(context)
+    private val apiKey = ApiKeyManager.getOrCreateApiKey(context)
 
     private val models = MutableStateFlow<List<Model>>(emptyList())
     private val selectedPath = MutableStateFlow<String?>(null)
@@ -87,12 +93,12 @@ class TransferViewModel(application: Application) : AndroidViewModel(application
         refreshModels()
         viewModelScope.launch {
             downloadInfos.collect { infos ->
-                if (infos.any { it.state == WorkInfo.State.SUCCEEDED }) refreshModels()
+                if (infos.any { it.state == WorkInfo.State.SUCCEEDED }) onModelsChanged()
             }
         }
         viewModelScope.launch {
             importInfos.collect { infos ->
-                if (infos.any { it.state == WorkInfo.State.SUCCEEDED }) refreshModels()
+                if (infos.any { it.state == WorkInfo.State.SUCCEEDED }) onModelsChanged()
             }
         }
     }
@@ -103,7 +109,7 @@ class TransferViewModel(application: Application) : AndroidViewModel(application
     }
 
     fun onResumed() {
-        refreshModels()
+        onModelsChanged()
         if (awaitingGrant) {
             awaitingGrant = false
             importCandidate?.let { importPrompt.value = ImportPrompt.Choose(it.name, it.sizeBytes) }
@@ -117,7 +123,7 @@ class TransferViewModel(application: Application) : AndroidViewModel(application
 
     fun delete(model: Model) {
         repository.delete(model)
-        refreshModels()
+        onModelsChanged()
     }
 
     fun startDownload(request: DownloadRequest) {
@@ -205,6 +211,21 @@ class TransferViewModel(application: Application) : AndroidViewModel(application
 
     private fun canMove(candidate: ImportCandidate): Boolean =
         candidate.path != null && AllFilesAccess.isGranted()
+
+    /** A change on disk: refresh the app's list and, if serving, the router's too. */
+    private fun onModelsChanged() {
+        refreshModels()
+        reloadRouter()
+    }
+
+    /** Best-effort: ask a running router to re-scan its models directory. */
+    private fun reloadRouter() {
+        if (!settings.routerMode) return
+
+        viewModelScope.launch(Dispatchers.IO) {
+            runCatching { ModelsClient(settings.port, apiKey).reload() }
+        }
+    }
 
     private data class ImportCandidate(
         val name: String,
